@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Admin | Add Gallery</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="../assets/css/custom.css" />
+  <style>
+    /* Small niceties for the dropzone and preview grid */
+    .dropzone-active { border-color: rgb(34 197 94); background: rgb(240 253 244); }
+    .thumb { aspect-ratio: 4 / 3; object-fit: cover; }
+    .cover-ring { box-shadow: 0 0 0 2px rgba(16,185,129,.9) inset; }
+  </style>
+</head>
+<body class="h-full bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100">
+  <!-- Backdrop -->
+  <div id="backdrop" class="fixed inset-0 bg-black/40 opacity-0 pointer-events-none lg:hidden"></div>
+
+  <!-- Sidebar (same as your other pages; keep links consistent) -->
+  <aside id="sidebar" class="fixed top-0 left-0 z-40 h-full w-72 bg-white border-r border-gray-200 dark:bg-gray-800 dark:border-gray-700">
+    <div class="flex items-center gap-3 px-5 h-16 border-b border-gray-200 dark:border-gray-700">
+      <div class="size-9 rounded-lg bg-emerald-600"></div>
+      <div class="font-semibold">Admin Panel</div>
+    </div>
+    <nav class="p-3">
+      <a href="../index.html" class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">
+        <span>🏠</span><span>Dashboard</span>
+      </a>
+      <a href="./" class="flex items-center gap-3 px-3 py-2 rounded-lg mt-1 hover:bg-gray-100 dark:hover:bg-gray-700">
+        <span>🖼️</span><span>Gallery</span>
+      </a>
+      <a href="./add.html" class="flex items-center gap-3 px-3 py-2 rounded-lg mt-1 bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
+        <span>➕</span><span>Add Gallery</span>
+      </a>
+    </nav>
+  </aside>
+
+  <!-- Main -->
+  <div class="lg:pl-72 min-h-full">
+    <!-- Topbar -->
+    <header class="sticky top-0 z-30 bg-white/80 backdrop-blur border-b border-gray-200 dark:bg-gray-800/80 dark:border-gray-700">
+      <div class="h-16 px-4 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <button class="lg:hidden p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700" data-toggle="sidebar" aria-label="Open sidebar">☰</button>
+          <h1 class="text-lg font-semibold">Add Gallery</h1>
+        </div>
+        <button class="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700" data-toggle="theme" aria-label="Toggle theme">🌓</button>
+      </div>
+    </header>
+
+    <main class="p-6">
+      <form id="addGalleryForm" class="max-w-4xl mx-auto space-y-6 bg-white rounded-2xl border border-gray-200 p-6 shadow-sm dark:bg-gray-800 dark:border-gray-700"
+            action="/api/galleries" method="POST" enctype="multipart/form-data">
+        <!-- Title -->
+        <div>
+          <label for="title" class="block text-sm font-medium mb-1">Title <span class="text-red-600">*</span></label>
+          <input id="title" name="title" type="text" required
+                 class="w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:bg-gray-900 dark:border-gray-700"
+                 placeholder="e.g., Annual Meet 2025" />
+          <p id="titleHelp" class="mt-1 text-xs text-gray-500">Give your album a short, descriptive title.</p>
+        </div>
+
+        <!-- Description -->
+        <div>
+          <label for="description" class="block text-sm font-medium mb-1">Description</label>
+          <textarea id="description" name="description" rows="4"
+                    class="w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:bg-gray-900 dark:border-gray-700"
+                    placeholder="What’s in this gallery?"></textarea>
+          <div class="mt-1 text-xs text-gray-500 flex justify-between">
+            <span>Optional, but helpful for context.</span>
+            <span id="descCount">0 / 500</span>
+          </div>
+        </div>
+
+        <!-- Visibility -->
+        <div class="flex items-center gap-3">
+          <input id="isPublished" name="isPublished" type="checkbox" class="size-4" checked />
+          <label for="isPublished" class="text-sm">Publish immediately</label>
+        </div>
+
+        <!-- Images: picker + dropzone -->
+        <div>
+          <label class="block text-sm font-medium mb-2">Images <span class="text-red-600">*</span></label>
+
+          <div id="dropzone"
+               class="rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 p-6 text-center dark:bg-gray-900 dark:border-gray-700">
+            <div class="mx-auto max-w-lg">
+              <p class="font-medium">Drag & drop images here</p>
+              <p class="text-sm text-gray-500 mt-1">or</p>
+              <div class="mt-3">
+                <label for="images" class="inline-flex items-center px-4 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 cursor-pointer">
+                  Choose files
+                </label>
+                <input id="images" name="images" type="file" multiple accept="image/*" class="hidden" />
+              </div>
+              <p class="text-xs text-gray-500 mt-3">
+                Up to <b id="limitCount">50</b> images, max <b>5MB</b> each, total <b>100MB</b>.
+              </p>
+              <p id="sizeInfo" class="text-xs text-gray-500 mt-1">Total size: 0 MB</p>
+            </div>
+          </div>
+
+          <!-- Preview grid -->
+          <div id="preview" class="mt-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4"></div>
+          <input type="hidden" id="coverIndex" name="coverIndex" value="0" />
+        </div>
+
+        <!-- Actions -->
+        <div class="flex items-center justify-between pt-2">
+          <button type="button" id="clearBtn" class="px-4 py-2 rounded-lg border border-gray-300 hover:bg-gray-100 dark:border-gray-700 dark:hover:bg-gray-700">
+            Clear
+          </button>
+          <button id="submitBtn" type="submit"
+                  class="px-5 py-2.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed">
+            Save Gallery
+          </button>
+        </div>
+
+        <!-- Inline alert -->
+        <div id="formAlert" class="hidden mt-2 rounded-lg border p-3 text-sm"></div>
+      </form>
+    </main>
+  </div>
+
+  <script>
+    // Basic interactions used across pages (sidebar/theme)
+    (function baseUI(){
+      document.querySelectorAll('[data-toggle="sidebar"]').forEach(btn=>{
+        btn.addEventListener('click',()=>document.documentElement.classList.toggle('sidebar-open'));
+      });
+      const themeBtn = document.querySelector('[data-toggle="theme"]');
+      const setTheme = t => { document.documentElement.classList.toggle('dark', t==='dark'); localStorage.setItem('theme', t); };
+      if(themeBtn) themeBtn.addEventListener('click',()=>setTheme(document.documentElement.classList.contains('dark')?'light':'dark'));
+      const stored = localStorage.getItem('theme'); if(stored) setTheme(stored);
+    })();
+
+    // Add Gallery form logic
+    (function(){
+      const MAX_IMAGES = 50;
+      const MAX_PER_FILE = 5 * 1024 * 1024;     // 5MB
+      const MAX_TOTAL = 100 * 1024 * 1024;      // 100MB
+
+      const form = document.getElementById('addGalleryForm');
+      const title = document.getElementById('title');
+      const desc = document.getElementById('description');
+      const descCount = document.getElementById('descCount');
+      const input = document.getElementById('images');
+      const preview = document.getElementById('preview');
+      const dropzone = document.getElementById('dropzone');
+      const formAlert = document.getElementById('formAlert');
+      const submitBtn = document.getElementById('submitBtn');
+      const clearBtn = document.getElementById('clearBtn');
+      const coverIndexField = document.getElementById('coverIndex');
+      const sizeInfo = document.getElementById('sizeInfo');
+      document.getElementById('limitCount').textContent = MAX_IMAGES;
+
+      // Keep a working list so we can remove/reorder without losing File objects
+      let files = [];
+
+      const bytesToMB = (b) => Math.round((b / (1024*1024)) * 10) / 10;
+
+      const showAlert = (msg, type='info') => {
+        formAlert.className = 'mt-2 rounded-lg border p-3 text-sm ' +
+          (type==='error'
+            ? 'border-red-200 bg-red-50 text-red-800 dark:border-red-900/40 dark:bg-red-900/20 dark:text-red-100'
+            : 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900/40 dark:bg-emerald-900/20 dark:text-emerald-100');
+        formAlert.textContent = msg;
+        formAlert.classList.remove('hidden');
+        setTimeout(()=>formAlert.classList.add('hidden'), 3500);
+      };
+
+      const refreshSizeInfo = () => {
+        const total = files.reduce((s,f)=>s+f.size,0);
+        sizeInfo.textContent = 'Total size: ' + bytesToMB(total) + ' MB';
+      };
+
+      const validate = () => {
+        if (!title.value.trim()) return false;
+        if (files.length === 0) return false;
+        const total = files.reduce((s,f)=>s+f.size,0);
+        if (total > MAX_TOTAL) return false;
+        return true;
+      };
+
+      const updateSubmitState = () => {
+        submitBtn.disabled = !validate();
+      };
+
+      const renderPreview = () => {
+        preview.innerHTML = '';
+        files.forEach((file, idx) => {
+          const url = URL.createObjectURL(file);
+          const card = document.createElement('div');
+          card.className = 'relative group rounded-lg overflow-hidden ring-1 ring-black/5 bg-gray-50 dark:bg-gray-900';
+
+          const img = document.createElement('img');
+          img.src = url; img.alt = file.name; img.className = 'thumb w-full h-32';
+
+          // Top-right remove button
+          const rm = document.createElement('button');
+          rm.type = 'button';
+          rm.className = 'absolute top-2 right-2 px-2 py-1 text-xs rounded-md bg-white/90 hover:bg-white dark:bg-gray-800/90';
+          rm.textContent = 'Remove';
+          rm.addEventListener('click', () => {
+            files.splice(idx, 1);
+            if (Number(coverIndexField.value) === idx) coverIndexField.value = 0;
+            else if (Number(coverIndexField.value) > idx) coverIndexField.value = Number(coverIndexField.value) - 1;
+            renderPreview(); refreshSizeInfo(); updateSubmitState();
+          });
+
+          // Bottom bar: filename + "Set cover"
+          const bar = document.createElement('div');
+          bar.className = 'absolute inset-x-0 bottom-0 p-2 text-xs bg-gradient-to-t from-black/50 to-transparent text-white flex items-center justify-between';
+          const name = document.createElement('span');
+          name.className = 'truncate max-w-[65%]'; name.textContent = file.name;
+
+          const coverBtn = document.createElement('button');
+          coverBtn.type = 'button';
+          coverBtn.className = 'px-2 py-1 rounded-md bg-white/90 text-gray-900 hover:bg-white';
+          coverBtn.textContent = 'Set cover';
+          coverBtn.addEventListener('click', () => {
+            coverIndexField.value = String(idx);
+            highlightCover();
+          });
+
+          bar.appendChild(name); bar.appendChild(coverBtn);
+
+          card.appendChild(img);
+          card.appendChild(rm);
+          card.appendChild(bar);
+          preview.appendChild(card);
+        });
+        highlightCover();
+      };
+
+      const highlightCover = () => {
+        [...preview.children].forEach((el,i)=>{
+          el.classList.toggle('cover-ring', i === Number(coverIndexField.value));
+        });
+      };
+
+      const addFiles = (list) => {
+        const incoming = [...list];
+        if (files.length + incoming.length > MAX_IMAGES) {
+          showAlert(`You can upload up to ${MAX_IMAGES} images.`, 'error');
+        }
+        for (const f of incoming) {
+          if (!f.type.startsWith('image/')) continue;
+          if (f.size > MAX_PER_FILE) {
+            showAlert(`"${f.name}" is larger than 5MB and was skipped.`, 'error');
+            continue;
+          }
+          if (files.length >= MAX_IMAGES) break;
+          files.push(f);
+        }
+        renderPreview();
+        refreshSizeInfo();
+        updateSubmitState();
+      };
+
+      // File input
+      input.addEventListener('change', (e) => addFiles(e.target.files));
+
+      // Drag & drop
+      ;['dragenter','dragover'].forEach(evt=>{
+        dropzone.addEventListener(evt, (e)=>{ e.preventDefault(); e.stopPropagation(); dropzone.classList.add('dropzone-active'); });
+      });
+      ;['dragleave','drop'].forEach(evt=>{
+        dropzone.addEventListener(evt, (e)=>{ e.preventDefault(); e.stopPropagation(); dropzone.classList.remove('dropzone-active'); });
+      });
+      dropzone.addEventListener('drop', (e)=>{
+        const dt = e.dataTransfer;
+        if (dt && dt.files) addFiles(dt.files);
+      });
+
+      // Description counter
+      desc.addEventListener('input', ()=>{
+        const val = desc.value.slice(0,500);
+        if (val.length !== desc.value.length) desc.value = val;
+        descCount.textContent = `${val.length} / 500`;
+      });
+
+      // Clear form
+      clearBtn.addEventListener('click', ()=>{
+        files = [];
+        input.value = '';
+        title.value = '';
+        desc.value = '';
+        descCount.textContent = '0 / 500';
+        coverIndexField.value = '0';
+        renderPreview();
+        refreshSizeInfo();
+        updateSubmitState();
+      });
+
+      // Submit
+      form.addEventListener('submit', async (e)=>{
+        if (!validate()) {
+          e.preventDefault();
+          showAlert('Please add a title and at least one valid image (size limits apply).', 'error');
+          return;
+        }
+
+        // If you use real XHR submission, uncomment below and prevent default
+        // e.preventDefault();
+        // const fd = new FormData();
+        // fd.append('title', title.value.trim());
+        // fd.append('description', desc.value.trim());
+        // fd.append('isPublished', document.getElementById('isPublished').checked ? 'true' : 'false');
+        // fd.append('coverIndex', coverIndexField.value);
+        // files.forEach((f)=> fd.append('images', f, f.name));
+        // const res = await fetch(form.action, { method: 'POST', body: fd });
+        // const json = await res.json();
+        // if (!res.ok) { showAlert(json?.message || 'Upload failed', 'error'); return; }
+        // showAlert('Gallery created successfully!', 'info');
+        // window.location.href = './';
+
+      });
+
+      // Initial state
+      updateSubmitState();
+    })();
+  </script>
+</body>
+</html>
