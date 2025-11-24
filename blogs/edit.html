@@ -9,12 +9,35 @@
   <link rel="stylesheet" href="../assets/css/custom.css" />
   <link href="https://cdn.jsdelivr.net/npm/quill@1.3.7/dist/quill.snow.css" rel="stylesheet" />
   <style>
-    .thumb { aspect-ratio: 16 / 9; object-fit: cover; border-radius: .5rem; }
+    /* visuals */
+    .thumb { aspect-ratio: 16 / 9; object-fit: cover; border-radius: .5rem; display:block; width:100%; }
     .cover-ring { box-shadow: 0 0 0 3px rgba(16,185,129,.12) inset; border: 2px solid rgba(16,185,129,.18); }
     .grid-auto-fit { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
     .img-card { position: relative; border-radius: .5rem; overflow: hidden; background: rgba(255,255,255,0.02); }
     #alert { max-width: 900px; margin: 0 auto; }
     .dropzone-active { border-color:#2563eb; background:#eff6ff; }
+    /* ensure image overlay is readable */
+    .img-card .overlay { position:absolute; left:0; right:0; bottom:0; padding:.5rem; display:flex; justify-content:space-between; align-items:center; gap:.5rem; background:linear-gradient(0deg, rgba(0,0,0,.6), transparent); color:#fff; font-size:.9rem; }
+
+    /* === FIX: force form controls to white background ===
+       We want placeholders and input backgrounds to be white even when the page is dark.
+       Use a specific class to avoid overriding other components unintentionally.
+    */
+    .force-light {
+      background: #ffffff !important;
+      color: #111827 !important;
+      border-color: #d1d5db !important; /* tailwind gray-300 */
+    }
+    /* placeholder color */
+    .force-light::placeholder { color: #9ca3af !important; opacity:1; }
+
+    /* Quill editor: keep dark editor area but ensure toolbar contrast */
+    #editor { min-height: 260px; background: transparent; color: inherit; }
+    .ql-toolbar.ql-snow { border-radius: .5rem .5rem 0 0; }
+    .ql-container.ql-snow { border-radius: 0 0 .5rem .5rem; }
+
+    /* small layout niceties */
+    .hidden { display: none !important; }
   </style>
 </head>
 <body class="h-full bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100">
@@ -47,25 +70,30 @@
       </div>
     </header>
 
-    <main class="p-6" data-api-base="http://127.0.0.1:3000/api">
+    <main class="p-6" data-api-base="https://weplanfuture.com/api">
       <div id="alert" class="hidden rounded-lg border p-3 text-sm mb-4"></div>
 
-      <form id="editForm" class="max-w-5xl mx-auto space-y-6  rounded-2xl border border-gray-200 p-6 shadow-sm dark:bg-gray-800 dark:border-gray-700">
+      <form id="editForm" class="max-w-5xl mx-auto space-y-6 rounded-2xl border border-gray-200 p-6 shadow-sm dark:bg-white dark:border-gray-700">
         <input type="hidden" id="blogId" name="id" value="" />
         <input type="hidden" id="coverImageId" name="coverImageId" value="" />
 
         <div>
           <label class="block text-sm font-medium mb-1">Title <span class="text-red-600">*</span></label>
-          <input id="title" name="title" type="text" required class="bg-gray-800 w-full rounded-lg border px-3 py-2" placeholder="Blog title" />
+          <!-- changed to force-light so placeholder/background show white -->
+          <input id="title" name="title" type="text" required
+                 class="w-full rounded-lg border px-3 py-2 force-light"
+                 placeholder="Blog title" />
         </div>
 
         <div>
           <div class="flex items-center justify-between mb-1">
             <label class="block text-sm font-medium">Content</label>
-            <div class="text-xs  text-gray-500 dark:text-gray-300">Words: <span id="wordCount">0</span></div>
+            <div class="text-xs text-gray-500 dark:text-gray-300">Words: <span id="wordCount">0</span></div>
           </div>
           <div id="toolbar" class="ql-toolbar ql-snow bg-gray-100 rounded-t-xl"></div>
-          <div id="editor" class="bg-gray-800 dark:bg-gray-900 rounded-b-xl"></div>
+          <!-- editor kept visually separate (transparent background), content area uses Quill styles -->
+          <div id="editor" class="bg-white rounded-b-xl" style="min-height:260px;"></div>
+
           <input type="hidden" id="content_html" name="content_html" />
           <input type="hidden" id="content_delta" name="content_delta" />
         </div>
@@ -78,7 +106,7 @@
 
         <div>
           <label class="block text-sm font-medium mb-2">Add new images</label>
-          <div id="dropzone" class="rounded-xl border-2 border-dashed p-6 text-center">
+          <div id="dropzone" class="rounded-xl border-2 border-dashed p-6 text-center bg-white">
             <div class="mx-auto max-w-lg">
               <p class="font-medium">Drag & drop images here</p>
               <p class="text-sm text-gray-500 mt-1">or</p>
@@ -180,7 +208,6 @@
       const MAX_PER_FILE = 6 * 1024 * 1024;
       let serverSnapshot = null;
       let existing = []; // { id, image_name }
-      let deletedIds = new Set();
       let newFiles = [];
 
       const bytesToMB = b => Math.round((b/(1024*1024))*10)/10;
@@ -208,23 +235,20 @@
       // Render existing images
       function renderExisting() {
         existingGrid.innerHTML = '';
-        const kept = existing.filter(x => !deletedIds.has(x.id));
-        if (!kept.length) existingEmpty.classList.remove('hidden'); else existingEmpty.classList.add('hidden');
+        if (!existing.length) existingEmpty.classList.remove('hidden'); else existingEmpty.classList.add('hidden');
 
         const currentCover = Number(coverImageIdFld.value || 0);
-        kept.forEach(img => {
+        existing.forEach(img => {
           const card = document.createElement('div');
-          card.className = 'img-card';
+          card.className = 'img-card relative';
 
           const image = document.createElement('img');
-          image.className = 'thumb w-full';
+          image.className = 'thumb';
           image.src = IMG_BLOB(img.id);
           image.alt = img.image_name || '';
 
-          // bottom overlay
           const bar = document.createElement('div');
-          bar.className = 'absolute left-0 right-0 bottom-0 p-2 flex items-center justify-between text-xs text-white bg-gradient-to-t from-black/60 to-transparent';
-
+          bar.className = 'overlay';
           const name = document.createElement('span'); name.textContent = img.image_name || `img-${img.id}`;
           const controls = document.createElement('div'); controls.className = 'flex gap-2';
 
@@ -240,16 +264,13 @@
           const delNow = document.createElement('button');
           delNow.type='button'; delNow.className='px-2 py-1 rounded-md bg-red-50 text-red-700 text-xs';
           delNow.textContent = 'Delete';
-          // immediate delete (simpler UX). If you prefer "mark for deletion" only, change this behavior.
           delNow.addEventListener('click', async () => {
             if (!confirm('Delete this image from server permanently?')) return;
             try {
               const r = await fetch(DELETE_IMAGE(img.id), { method: 'DELETE', credentials: 'include' });
               const jr = await r.json().catch(()=>null);
               if (!r.ok) throw new Error((jr && (jr.error||jr.message)) || `Failed (${r.status})`);
-              // remove from local lists
               existing = existing.filter(x => x.id !== img.id);
-              deletedIds.delete(img.id);
               if (Number(coverImageIdFld.value) === img.id) coverImageIdFld.value = '';
               renderExisting();
               showAlert('Image deleted', 'info', 1500);
@@ -275,7 +296,7 @@
       function highlightCovers() {
         const cur = Number(coverImageIdFld.value || 0);
         [...existingGrid.children].forEach((el, idx) => {
-          const img = existing.filter(x=>x && !deletedIds.has(x.id))[idx];
+          const img = existing[idx];
           if (!img) return;
           el.classList.toggle('cover-ring', img.id === cur);
         });
@@ -286,10 +307,10 @@
         newFiles.forEach((file, idx) => {
           const url = URL.createObjectURL(file);
           const card = document.createElement('div');
-          card.className = 'img-card';
+          card.className = 'img-card relative';
 
           const img = document.createElement('img');
-          img.src = url; img.alt = file.name; img.className = 'thumb w-full';
+          img.src = url; img.alt = file.name; img.className = 'thumb';
 
           const rm = document.createElement('button');
           rm.type='button'; rm.className='absolute top-2 right-2 px-2 py-1 text-xs rounded-md bg-white/90';
@@ -348,7 +369,6 @@
 
           isPublished.checked = !!(blog.is_published ?? blog.isPublished);
           existing = (images || []).map(it => ({ id: Number(it.id), image_name: it.image_name || it.filename || '' }));
-          deletedIds.clear();
           newFiles = [];
           coverImageIdFld.value = blog.cover_image_id ?? blog.coverImageId ?? '';
 
@@ -371,7 +391,7 @@
         else quill.setText(g.content||'');
         isPublished.checked = !!(g.is_published || g.isPublished);
         existing = (serverSnapshot.images||[]).map(r=>({ id: Number(r.id), image_name: r.image_name || r.filename || '' }));
-        deletedIds.clear(); newFiles=[]; document.getElementById('images').value = '';
+        newFiles=[]; document.getElementById('images').value = '';
         coverImageIdFld.value = g.cover_image_id ?? g.coverImageId ?? '';
         renderExisting(); renderNewPreview(); refreshNewSize(); updateWordCount();
         showAlert('Reset to server state', 'info', 1000);
@@ -397,10 +417,6 @@
         try { fd.append('content_delta', JSON.stringify(quill.getContents())); } catch(e){}
         fd.append('isPublished', isPublished.checked ? 'true' : 'false');
         if (coverImageIdFld.value) fd.append('coverImageId', coverImageIdFld.value);
-
-        // If user used immediate deletes, server already removed items; no need to send delete list.
-        // But for safety, if we used marking approach you'd send deleteImageIds. (we used immediate delete button above)
-        // If you prefer "mark only" behaviour, swap UI accordingly and append fd.append('deleteImageIds', Array.from(deletedIds).join(','));
 
         for (const f of newFiles) fd.append('images[]', f, f.name);
 
