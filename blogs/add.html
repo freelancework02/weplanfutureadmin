@@ -4,17 +4,45 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Admin | New Blog</title>
+
+  <!-- Tailwind -->
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="../assets/css/custom.css" />
+
+  <!-- Quill (Snow theme) -->
+  <link href="https://cdn.jsdelivr.net/npm/quill@1.3.7/dist/quill.snow.css" rel="stylesheet" />
   <style>
     .thumb { aspect-ratio: 16 / 9; object-fit: cover; }
     .cover-ring { box-shadow: 0 0 0 2px rgba(16,185,129,.9) inset; }
+    #editor { height: 320px; }
+    .ql-toolbar.ql-snow { border-radius: 0.75rem 0.75rem 0 0; }
+    .ql-container.ql-snow { border-radius: 0 0 0.75rem 0.75rem; }
+
+    /* Dark toolbar overrides (white icons & text) */
+    #toolbar.ql-toolbar .ql-stroke { stroke: #fff !important; }
+    #toolbar.ql-toolbar .ql-fill { fill: #fff !important; }
+    #toolbar.ql-toolbar .ql-picker,
+    #toolbar.ql-toolbar .ql-picker-label,
+    #toolbar.ql-toolbar .ql-picker-item,
+    #toolbar.ql-toolbar .ql-formats button { color: #fff !important; }
+    #toolbar.ql-toolbar .ql-picker-options {
+      background: #111827 !important;
+      border-color: #374151 !important;
+      color: #fff !important;
+    }
+    #toolbar.ql-toolbar .ql-picker-label:hover,
+    #toolbar.ql-toolbar .ql-picker-item:hover,
+    #toolbar.ql-toolbar .ql-formats button:hover,
+    #toolbar.ql-toolbar .ql-formats .ql-active { filter: brightness(1.15); }
+
+    /* small alert area */
+    #formAlert { max-width: 900px; margin: 0 auto; }
   </style>
 </head>
 <body class="h-full bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100">
   <div id="backdrop" class="fixed inset-0 bg-black/40 opacity-0 pointer-events-none lg:hidden"></div>
 
-  <!-- Sidebar (match your other pages) -->
+  <!-- Sidebar -->
   <aside id="sidebar" class="fixed top-0 left-0 z-40 h-full w-72 bg-white border-r border-gray-200 dark:bg-gray-800 dark:border-gray-700">
     <div class="flex items-center gap-3 px-5 h-16 border-b border-gray-200 dark:border-gray-700">
       <div class="size-9 rounded-lg bg-emerald-600"></div>
@@ -50,8 +78,12 @@
     </header>
 
     <main class="p-6">
-      <form id="blogForm" class="max-w-3xl mx-auto space-y-6 bg-white rounded-2xl border border-gray-200 p-6 shadow-sm dark:bg-gray-800 dark:border-gray-700"
-            action="/api/blogs" method="POST" enctype="multipart/form-data">
+      <!-- IMPORTANT: set the API endpoint here to your express route -->
+      <form id="blogForm"
+            class="max-w-4xl mx-auto space-y-6 bg-white rounded-2xl border border-gray-200 p-6 shadow-sm dark:bg-gray-800 dark:border-gray-700"
+            method="POST" enctype="multipart/form-data"
+            data-endpoint="http://127.0.0.1:3000/api/blogs">
+
         <!-- Title -->
         <div>
           <label for="title" class="block text-sm font-medium mb-1">Title <span class="text-red-600">*</span></label>
@@ -60,29 +92,35 @@
                  placeholder="e.g., How We Built Our New Gallery" />
         </div>
 
-        <!-- Description -->
+        <!-- Content -->
         <div>
-          <label for="description" class="block text-sm font-medium mb-1">Description</label>
-          <textarea id="description" name="description" rows="6"
-                    class="w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:bg-gray-900 dark:border-gray-700"
-                    placeholder="Write your blog content or summary here (supports plain text / markdown, depending on backend)."></textarea>
-          <div class="mt-1 text-xs text-gray-500 flex justify-end">
-            <span id="descCount">0 / 1000</span>
+          <div class="flex items-center justify-between mb-1">
+            <label class="block text-sm font-medium">Content</label>
+            <div class="text-xs text-gray-500 dark:text-gray-300">Words: <span id="wordCount">0</span></div>
           </div>
+
+          <!-- Dark toolbar -->
+          <div id="toolbar" class="ql-toolbar ql-snow bg-gray-800 text-white rounded-t-xl"></div>
+
+          <!-- Editor area -->
+          <div id="editor" class="bg-white dark:bg-gray-900 rounded-b-xl"></div>
+
+          <!-- Hidden fields for backend -->
+          <input type="hidden" id="content_html" name="content_html" />
+          <input type="hidden" id="content_delta" name="content_delta" />
         </div>
 
-        <!-- Images (up to 2) -->
+        <!-- Images -->
         <div>
           <label class="block text-sm font-medium mb-2">Images (optional, up to 2)</label>
           <div class="flex items-center gap-3">
             <label for="images" class="inline-flex items-center px-4 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 cursor-pointer">
               Choose files
             </label>
-            <input id="images" name="images" type="file" multiple accept="image/*" class="hidden" />
+            <input id="images" name="images[]" type="file" multiple accept="image/*" class="hidden" />
             <p class="text-xs text-gray-500">Max 2 images, 5MB each. You can set one as cover.</p>
           </div>
 
-          <!-- Preview -->
           <div id="preview" class="mt-4 grid grid-cols-2 gap-4"></div>
           <input type="hidden" id="coverIndex" name="coverIndex" value="-1" />
         </div>
@@ -98,67 +136,159 @@
           <button type="button" id="clearBtn" class="px-4 py-2 rounded-lg border border-gray-300 hover:bg-gray-100 dark:border-gray-700 dark:hover:bg-gray-700">
             Clear
           </button>
-          <button id="submitBtn" type="submit"
-                  class="px-5 py-2.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed">
-            Save Post
-          </button>
+          <div class="flex items-center gap-2">
+            <label class="text-xs text-gray-500 flex items-center gap-2">
+              <input id="useAjax" type="checkbox" class="size-4" checked />
+              Submit via fetch (AJAX)
+            </label>
+            <button id="submitBtn" type="submit"
+                    class="px-5 py-2.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed">
+              Save Post
+            </button>
+          </div>
         </div>
 
-        <!-- Inline alert -->
         <div id="formAlert" class="hidden mt-2 rounded-lg border p-3 text-sm"></div>
       </form>
     </main>
   </div>
 
+  <!-- Quill JS -->
+  <script src="https://cdn.jsdelivr.net/npm/quill@1.3.7/dist/quill.min.js"></script>
+
   <script>
-    // Basic layout helpers (sidebar + theme)
+    /* ---------- Base UI toggles ---------- */
     (function baseUI(){
       document.querySelectorAll('[data-toggle="sidebar"]').forEach(btn=>{
         btn.addEventListener('click',()=>document.documentElement.classList.toggle('sidebar-open'));
       });
       const themeBtn = document.querySelector('[data-toggle="theme"]');
       const setTheme = t => { document.documentElement.classList.toggle('dark', t==='dark'); localStorage.setItem('theme', t); };
-      if(themeBtn) themeBtn.addEventListener('click',()=>setTheme(document.documentElement.classList.contains('dark')?'light':'dark'));
-      const stored = localStorage.getItem('theme'); if(stored) setTheme(stored);
+      if (themeBtn) themeBtn.addEventListener('click',()=>setTheme(document.documentElement.classList.contains('dark')?'light':'dark'));
+      const stored = localStorage.getItem('theme'); if (stored) setTheme(stored);
     })();
 
-    // Blog form logic
+    /* ---------- Build Quill toolbar markup BEFORE init ---------- */
+    (function buildToolbar(){
+      const tb = document.getElementById('toolbar');
+      tb.innerHTML = `
+        <span class="ql-formats">
+          <select class="ql-font"></select>
+          <select class="ql-size"></select>
+        </span>
+        <span class="ql-formats">
+          <button class="ql-bold"></button>
+          <button class="ql-italic"></button>
+          <button class="ql-underline"></button>
+          <button class="ql-strike"></button>
+        </span>
+        <span class="ql-formats">
+          <select class="ql-color"></select>
+          <select class="ql-background"></select>
+        </span>
+        <span class="ql-formats">
+          <button class="ql-script" value="sub"></button>
+          <button class="ql-script" value="super"></button>
+        </span>
+        <span class="ql-formats">
+          <button class="ql-blockquote"></button>
+          <button class="ql-code-block"></button>
+        </span>
+        <span class="ql-formats">
+          <button class="ql-list" value="ordered"></button>
+          <button class="ql-list" value="bullet"></button>
+          <select class="ql-align"></select>
+          <button class="ql-direction" value="rtl"></button>
+        </span>
+        <span class="ql-formats">
+          <select class="ql-header">
+            <option selected></option>
+            <option value="1"></option>
+            <option value="2"></option>
+            <option value="3"></option>
+            <option value="4"></option>
+            <option value="5"></option>
+            <option value="6"></option>
+          </select>
+        </span>
+        <span class="ql-formats">
+          <button class="ql-link"></button>
+          <button class="ql-clean"></button>
+        </span>
+      `;
+    })();
+
+    /* ---------- Blog form + Quill logic (CREATE) ---------- */
     (function(){
-      const MAX_IMAGES = 2;
-      const MAX_PER_FILE = 5 * 1024 * 1024; // 5MB
+      // Init Quill
+      const quill = new Quill('#editor', {
+        theme: 'snow',
+        modules: { toolbar: '#toolbar', clipboard: { matchVisual: false } },
+        placeholder: 'Write your blog content here…'
+      });
+
+      // Elements
       const form = document.getElementById('blogForm');
+      // use explicit API endpoint pointing to your Express app
+      const API_URL = form.getAttribute('data-endpoint') || form.action;   // http://127.0.0.1:3000/api/blogs
       const title = document.getElementById('title');
-      const desc = document.getElementById('description');
-      const descCount = document.getElementById('descCount');
+      const isPublished = document.getElementById('isPublished');
+      const contentHtml = document.getElementById('content_html');
+      const contentDelta = document.getElementById('content_delta');
+      const wordCountEl  = document.getElementById('wordCount');
       const input = document.getElementById('images');
       const preview = document.getElementById('preview');
       const coverIndexField = document.getElementById('coverIndex');
       const submitBtn = document.getElementById('submitBtn');
       const clearBtn = document.getElementById('clearBtn');
       const formAlert = document.getElementById('formAlert');
+      const useAjax = document.getElementById('useAjax');
+
+      // Limits
+      const MAX_IMAGES = 2;
+      const MAX_PER_FILE = 5 * 1024 * 1024; // 5MB
 
       let files = [];
 
-      const showAlert = (msg, type='info') => {
+      const showAlert = (msg, type='info', persistMs=4000) => {
         formAlert.className = 'mt-2 rounded-lg border p-3 text-sm ' +
           (type==='error'
             ? 'border-red-200 bg-red-50 text-red-800 dark:border-red-900/40 dark:bg-red-900/20 dark:text-red-100'
             : 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900/40 dark:bg-emerald-900/20 dark:text-emerald-100');
         formAlert.textContent = msg;
         formAlert.classList.remove('hidden');
-        setTimeout(()=>formAlert.classList.add('hidden'), 3000);
+        if (persistMs) setTimeout(()=>formAlert.classList.add('hidden'), persistMs);
+      };
+
+      const textFromHtml = (html) => {
+        const div = document.createElement('div');
+        div.innerHTML = html || '';
+        return (div.textContent || '').replace(/\s+/g, ' ').trim();
+      };
+
+      const updateWordCount = () => {
+        const html = quill.root.innerHTML;
+        const txt = textFromHtml(html);
+        const words = txt.length ? txt.split(/\s+/).length : 0;
+        wordCountEl.textContent = words;
       };
 
       const validate = () => {
         if (!title.value.trim()) return false;
-        if (desc.value.length > 1000) return false;
+        const html = quill.root.innerHTML;
+        const text = textFromHtml(html);
+        if (!text.length) return false;
         if (files.some(f => f.size > MAX_PER_FILE)) return false;
         if (files.length > MAX_IMAGES) return false;
         return true;
       };
 
-      const updateSubmitState = () => {
-        submitBtn.disabled = !validate();
+      const updateSubmitState = () => { submitBtn.disabled = !validate(); };
+
+      const highlightCover = () => {
+        [...preview.children].forEach((el, i) => {
+          el.classList.toggle('cover-ring', i === Number(coverIndexField.value));
+        });
       };
 
       const renderPreview = () => {
@@ -169,7 +299,9 @@
           card.className = 'relative group rounded-lg overflow-hidden ring-1 ring-black/5 bg-gray-50 dark:bg-gray-900';
 
           const img = document.createElement('img');
-          img.src = url; img.alt = file.name; img.className = 'thumb w-full h-36';
+          img.src = url;
+          img.alt = file.name;
+          img.className = 'thumb w-full h-36';
 
           const rm = document.createElement('button');
           rm.type = 'button';
@@ -177,15 +309,20 @@
           rm.textContent = 'Remove';
           rm.addEventListener('click', () => {
             files.splice(idx, 1);
-            if (Number(coverIndexField.value) === idx) coverIndexField.value = files.length ? '0' : '-1';
-            else if (Number(coverIndexField.value) > idx) coverIndexField.value = String(Number(coverIndexField.value) - 1);
-            renderPreview(); updateSubmitState();
+            if (Number(coverIndexField.value) === idx) {
+              coverIndexField.value = files.length ? '0' : '-1';
+            } else if (Number(coverIndexField.value) > idx) {
+              coverIndexField.value = String(Number(coverIndexField.value) - 1);
+            }
+            renderPreview();
+            updateSubmitState();
           });
 
           const bar = document.createElement('div');
           bar.className = 'absolute inset-x-0 bottom-0 p-2 text-xs bg-gradient-to-t from-black/50 to-transparent text-white flex items-center justify-between';
           const name = document.createElement('span');
-          name.className = 'truncate max-w-[65%]'; name.textContent = file.name;
+          name.className = 'truncate max-w-[65%]';
+          name.textContent = file.name;
 
           const coverBtn = document.createElement('button');
           coverBtn.type = 'button';
@@ -196,21 +333,18 @@
             highlightCover();
           });
 
-          bar.appendChild(name); bar.appendChild(coverBtn);
-          card.appendChild(img); card.appendChild(rm); card.appendChild(bar);
+          bar.appendChild(name);
+          bar.appendChild(coverBtn);
+          card.appendChild(img);
+          card.appendChild(rm);
+          card.appendChild(bar);
           preview.appendChild(card);
         });
         highlightCover();
       };
 
-      const highlightCover = () => {
-        [...preview.children].forEach((el,i)=>{
-          el.classList.toggle('cover-ring', i === Number(coverIndexField.value));
-        });
-      };
-
       const addFiles = (list) => {
-        const incoming = [...list];
+        const incoming = Array.from(list);
         for (const f of incoming) {
           if (!f.type.startsWith('image/')) continue;
           if (f.size > MAX_PER_FILE) { showAlert(`"${f.name}" is larger than 5MB (skipped).`, 'error'); continue; }
@@ -221,50 +355,92 @@
         updateSubmitState();
       };
 
+      // Events
       input.addEventListener('change', (e) => addFiles(e.target.files));
+      quill.on('text-change', () => { updateWordCount(); updateSubmitState(); });
+      title.addEventListener('input', updateSubmitState);
 
-      // Description counter and limit
-      desc.addEventListener('input', ()=>{
-        if (desc.value.length > 1000) desc.value = desc.value.slice(0,1000);
-        descCount.textContent = `${desc.value.length} / 1000`;
-      });
-
-      // Clear
-      clearBtn.addEventListener('click', ()=>{
+      clearBtn.addEventListener('click', () => {
         files = [];
         input.value = '';
         title.value = '';
-        desc.value = '';
-        descCount.textContent = '0 / 1000';
+        quill.setContents([]);
         coverIndexField.value = '-1';
-        renderPreview(); updateSubmitState();
+        renderPreview();
+        updateWordCount();
+        updateSubmitState();
+        showAlert('Cleared.', 'info', 1500);
       });
 
-      // Submit
-      form.addEventListener('submit', async (e)=>{
+      // Sync hidden fields
+      const syncEditorHiddenFields = () => {
+        contentHtml.value  = quill.root.innerHTML;
+        contentDelta.value = JSON.stringify(quill.getContents());
+      };
+
+      // AJAX submit → /api/blogs (Express)
+      const submitAjax = async () => {
+        syncEditorHiddenFields();
+
+        const fd = new FormData();
+        fd.append('title', title.value.trim());
+        fd.append('content_html', contentHtml.value);
+        fd.append('content_delta', contentDelta.value);
+        fd.append('isPublished', isPublished.checked ? 'true' : 'false');
+        fd.append('coverIndex', coverIndexField.value);
+        files.forEach(f => fd.append('images[]', f, f.name));
+
+        submitBtn.disabled = true;
+        const old = submitBtn.textContent;
+        submitBtn.textContent = 'Saving...';
+
+        try {
+          const res = await fetch(API_URL, { method: 'POST', body: fd, credentials: 'include' });
+          const json = await res.json().catch(() => null);
+
+          if (!res.ok) {
+            // try to display server error message
+            const msg = (json && (json.error || json.message)) || `Save failed (${res.status})`;
+            throw new Error(msg);
+          }
+          if (!json || !json.ok) {
+            const msg = (json && (json.error || json.message)) || 'Save failed';
+            throw new Error(msg);
+          }
+
+          showAlert('Blog saved! Redirecting…', 'info', 1200);
+          setTimeout(()=>{ window.location.href = './'; }, 800);
+        } catch (err) {
+          console.error('submitAjax error', err);
+          showAlert(err.message || 'Save failed', 'error');
+        } finally {
+          submitBtn.disabled = false;
+          submitBtn.textContent = old;
+        }
+      };
+
+      // Native or AJAX
+      form.addEventListener('submit', (e) => {
         if (!validate()) {
           e.preventDefault();
-          showAlert('Please add a title and ensure images are within limits.', 'error');
+          showAlert('Please add a title and some content. Check image limits.', 'error');
           return;
         }
+        // Always keep hidden fields synced (even for native submit)
+        contentHtml.value  = quill.root.innerHTML;
+        contentDelta.value = JSON.stringify(quill.getContents());
 
-        // If you prefer fetch-XHR submission, uncomment below and prevent default:
-        // e.preventDefault();
-        // const fd = new FormData();
-        // fd.append('title', title.value.trim());
-        // fd.append('description', desc.value.trim());
-        // fd.append('isPublished', document.getElementById('isPublished').checked ? 'true' : 'false');
-        // fd.append('coverIndex', coverIndexField.value);
-        // files.forEach((f)=> fd.append('images', f, f.name));
-        // const res = await fetch(form.action, { method:'POST', body: fd });
-        // const json = await res.json();
-        // if (!res.ok) { showAlert(json?.message || 'Save failed', 'error'); return; }
-        // showAlert('Blog saved!', 'info');
-        // window.location.href = './';
-
+        if (useAjax.checked) {
+          e.preventDefault();
+          submitAjax();
+        } else {
+          // if native submit is used, form.action isn't used by backend (we post to Express),
+          // so prefer AJAX for JSON response handling.
+        }
       });
 
-      // Initial state
+      // Init
+      updateWordCount();
       updateSubmitState();
     })();
   </script>

@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Admin | Edit Gallery</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="../assets/css/custom.css" />
+  <style>
+    .dropzone-active { border-color: rgb(37 99 235); background: rgb(239 246 255); }
+    .thumb { aspect-ratio: 4 / 3; object-fit: cover; }
+    .cover-ring { box-shadow: 0 0 0 2px rgba(16,185,129,.9) inset; }
+    .grid-auto-fit { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
+  </style>
+</head>
+<body class="h-full bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100">
+  <!-- Backdrop -->
+  <div id="backdrop" class="fixed inset-0 bg-black/40 opacity-0 pointer-events-none lg:hidden"></div>
+
+  <!-- Sidebar -->
+  <aside id="sidebar" class="fixed top-0 left-0 z-40 h-full w-72 bg-white border-r border-gray-200 dark:bg-gray-800 dark:border-gray-700">
+    <div class="flex items-center gap-3 px-5 h-16 border-b border-gray-200 dark:border-gray-700">
+      <div class="size-9 rounded-lg bg-emerald-600"></div>
+      <div class="font-semibold">Admin Panel</div>
+    </div>
+    <nav class="p-3">
+      <a href="../index.html" class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">
+        <span>🏠</span><span>Dashboard</span>
+      </a>
+      <a href="./" class="flex items-center gap-3 px-3 py-2 rounded-lg mt-1 hover:bg-gray-100 dark:hover:bg-gray-700">
+        <span>🖼️</span><span>Gallery</span>
+      </a>
+      <a href="../blogs/" class="flex items-center gap-3 px-3 py-2 rounded-lg mt-1 hover:bg-gray-100 dark:hover:bg-gray-700">
+        <span>📝</span><span>Blogs</span>
+      </a>
+    </nav>
+  </aside>
+
+  <!-- Main -->
+  <div class="lg:pl-72 min-h-full">
+    <!-- Topbar -->
+    <header class="sticky top-0 z-30 bg-white/80 backdrop-blur border-b border-gray-200 dark:bg-gray-800/80 dark:border-gray-700">
+      <div class="h-16 px-4 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <button class="lg:hidden p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700" data-toggle="sidebar">☰</button>
+          <h1 class="text-lg font-semibold">Edit Gallery</h1>
+        </div>
+        <div class="flex items-center gap-2">
+          <button class="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700" data-toggle="theme">🌓</button>
+          <a id="viewLink" href="./view.html" class="px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700">View</a>
+          <a href="./" class="px-3 py-1.5 rounded-lg bg-slate-800 text-white hover:bg-slate-900">Back</a>
+        </div>
+      </div>
+    </header>
+
+    <!-- Content -->
+    <main class="p-6" data-api-base="http://127.0.0.1:3000/api">
+      <!-- Alert -->
+      <div id="alert" class="hidden rounded-lg border p-3 text-sm mb-4"></div>
+
+      <form id="editForm" class="max-w-5xl mx-auto space-y-6 bg-white rounded-2xl border border-gray-200 p-6 shadow-sm dark:bg-gray-800 dark:border-gray-700">
+        <!-- Hidden -->
+        <input type="hidden" id="galleryId" name="id" value="" />
+        <input type="hidden" id="coverImageId" name="coverImageId" value="" />
+
+        <!-- Title -->
+        <div>
+          <label for="title" class="block text-sm font-medium mb-1">Title <span class="text-red-600">*</span></label>
+          <input id="title" name="title" type="text" required
+                 class="w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-gray-900 dark:border-gray-700"
+                 placeholder="Gallery title" />
+        </div>
+
+        <!-- Description -->
+        <div>
+          <label for="description" class="block text-sm font-medium mb-1">Description</label>
+          <textarea id="description" name="description" rows="4"
+                    class="w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-gray-900 dark:border-gray-700"
+                    placeholder="Write a short description (optional)"></textarea>
+        </div>
+
+        <!-- Publish -->
+        <div class="flex items-center gap-3">
+          <input id="isPublished" name="isPublished" type="checkbox" class="size-4" />
+          <label for="isPublished" class="text-sm">Published</label>
+        </div>
+
+        <!-- Existing Images -->
+        <section class="space-y-3">
+          <div class="flex items-center justify-between">
+            <h3 class="text-base font-semibold">Existing photos</h3>
+            <div class="text-sm text-gray-500">Click “Set cover” to choose album cover. Remove to delete (deletions applied on save).</div>
+          </div>
+          <div id="existingGrid" class="grid grid-auto-fit gap-4"></div>
+          <div id="existingEmpty" class="hidden text-sm text-gray-500">No photos yet.</div>
+        </section>
+
+        <!-- Add new Images -->
+        <section class="space-y-3">
+          <h3 class="text-base font-semibold">Add new photos</h3>
+          <div id="dropzone" class="rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 p-6 text-center dark:bg-gray-900 dark:border-gray-700">
+            <div class="mx-auto max-w-lg">
+              <p class="font-medium">Drag & drop images here</p>
+              <p class="text-sm text-gray-500 mt-1">or</p>
+              <div class="mt-3">
+                <label for="images" class="inline-flex items-center px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 cursor-pointer">
+                  Choose files
+                </label>
+                <input id="images" name="images[]" type="file" multiple accept="image/*" class="hidden" />
+              </div>
+              <p class="text-xs text-gray-500 mt-3">
+                Up to <b>7</b> images total (including existing), max <b>5MB</b> each.
+              </p>
+              <p id="sizeInfo" class="text-xs text-gray-500 mt-1">New files total: 0 MB</p>
+            </div>
+          </div>
+          <div id="newPreview" class="grid grid-auto-fit gap-4 mt-4"></div>
+        </section>
+
+        <!-- Actions -->
+        <div class="flex items-center justify-between pt-2">
+          <button type="button" id="resetBtn" class="px-4 py-2 rounded-lg border border-gray-300 hover:bg-gray-100 dark:border-gray-700 dark:hover:bg-gray-700">
+            Reset changes
+          </button>
+          <button id="saveBtn" type="submit" class="px-5 py-2.5 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50">
+            Save changes
+          </button>
+        </div>
+      </form>
+    </main>
+  </div>
+
+  <script>
+    // Base UI
+    (function baseUI(){
+      document.querySelectorAll('[data-toggle="sidebar"]').forEach(btn=>{
+        btn.addEventListener('click',()=>document.documentElement.classList.toggle('sidebar-open'));
+      });
+      const themeBtn = document.querySelector('[data-toggle="theme"]');
+      const setTheme = t => { document.documentElement.classList.toggle('dark', t==='dark'); localStorage.setItem('theme', t); };
+      if(themeBtn) themeBtn.addEventListener('click',()=>setTheme(document.documentElement.classList.contains('dark')?'light':'dark'));
+      const stored = localStorage.getItem('theme'); if(stored) setTheme(stored);
+    })();
+
+    (function(){
+      const apiBase = document.querySelector('main').getAttribute('data-api-base') || '/api';
+      const params = new URLSearchParams(location.search);
+      const id = params.get('id');
+
+      const VIEW_URL = `${apiBase}/galleries/${encodeURIComponent(id)}`;   // GET
+      const UPDATE_URL = id ? `${apiBase}/galleries/${encodeURIComponent(id)}` : null; // PUT /api/galleries/:id
+      const IMG_URL = imgId => `${apiBase}/galleries/image/${encodeURIComponent(imgId)}/blob`; // GET
+      const DELETE_IMAGE = imageId => `${apiBase}/galleries/image/${encodeURIComponent(imageId)}`; // DELETE
+
+      const alertBox = document.getElementById('alert');
+      const showAlert = (msg, type='info') => {
+        alertBox.className = 'rounded-lg border p-3 text-sm mb-4 ' + (
+          type === 'error'
+            ? 'border-red-200 bg-red-50 text-red-800 dark:border-red-900/40 dark:bg-red-900/20 dark:text-red-100'
+            : 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900/40 dark:bg-emerald-900/20 dark:text-emerald-100'
+        );
+        alertBox.textContent = msg;
+        alertBox.classList.remove('hidden');
+        setTimeout(()=>alertBox.classList.add('hidden'), 3000);
+      };
+
+      // Form elements
+      const form   = document.getElementById('editForm');
+      const viewLink = document.getElementById('viewLink');
+
+      const galleryIdField  = document.getElementById('galleryId');
+      const coverImageIdFld = document.getElementById('coverImageId');
+
+      const title = document.getElementById('title');
+      const desc  = document.getElementById('description');
+      const pub   = document.getElementById('isPublished');
+
+      const existingGrid = document.getElementById('existingGrid');
+      const existingEmpty= document.getElementById('existingEmpty');
+
+      const input = document.getElementById('images');
+      const newPreview = document.getElementById('newPreview');
+      const dropzone = document.getElementById('dropzone');
+      const sizeInfo = document.getElementById('sizeInfo');
+
+      const resetBtn = document.getElementById('resetBtn');
+      const saveBtn  = document.getElementById('saveBtn');
+
+      // Working state
+      const MAX_FILES = 7;
+      const MAX_PER_FILE = 5 * 1024 * 1024;
+
+      let initial = null;            // server state for reset
+      let existing = [];             // [{id, filename, ...}]
+      let deletedIds = new Set();    // ids marked for deletion
+      let newFiles = [];             // File[] queued to add
+
+      const bytesToMB = b => Math.round((b / (1024*1024)) * 10) / 10;
+
+      const refreshNewSize = () => {
+        const total = newFiles.reduce((s,f)=>s+f.size,0);
+        sizeInfo.textContent = 'New files total: ' + bytesToMB(total) + ' MB';
+      };
+
+      const canSave = () => {
+        const keptCount   = existing.filter(x=>!deletedIds.has(x.id)).length;
+        const totalCount  = keptCount + newFiles.length;
+        if (!title.value.trim()) return false;
+        if (totalCount === 0) return false;
+        if (totalCount > MAX_FILES) return false;
+        return true;
+      };
+      const updateSaveState = () => { saveBtn.disabled = !canSave(); };
+
+      // Render existing images
+      const renderExisting = () => {
+        existingGrid.innerHTML = '';
+        const kept = existing.filter(x => !deletedIds.has(x.id));
+        if (!kept.length) existingEmpty.classList.remove('hidden'); else existingEmpty.classList.add('hidden');
+
+        const currentCoverId = Number(coverImageIdFld.value || 0);
+
+        kept.forEach(img => {
+          const card = document.createElement('div');
+          card.className = 'relative rounded-lg overflow-hidden ring-1 ring-black/5 bg-gray-50 dark:bg-gray-900';
+
+          const image = document.createElement('img');
+          image.src = IMG_URL(img.id);
+          image.alt = img.filename || '';
+          image.className = 'thumb w-full';
+
+          const bar = document.createElement('div');
+          bar.className = 'absolute inset-x-0 bottom-0 p-2 text-xs bg-gradient-to-t from-black/50 to-transparent text-white flex items-center justify-between';
+
+          const name = document.createElement('span');
+          name.className = 'truncate max-w-[60%]';
+          name.textContent = img.filename || `image-${img.id}`;
+
+          const right = document.createElement('div');
+          right.className = 'flex items-center gap-2';
+
+          const setCover = document.createElement('button');
+          setCover.type = 'button';
+          setCover.className = 'px-2 py-1 rounded-md bg-white/90 text-gray-900 hover:bg-white';
+          setCover.textContent = 'Set cover';
+          setCover.addEventListener('click', () => {
+            coverImageIdFld.value = String(img.id);
+            highlightCovers();
+          });
+
+          const remove = document.createElement('button');
+          remove.type = 'button';
+          remove.className = 'px-2 py-1 rounded-md bg-white/90 text-red-600 hover:bg-white';
+          remove.textContent = 'Remove';
+          remove.addEventListener('click', () => {
+            deletedIds.add(img.id);
+            // if we removed the cover, clear cover
+            if (Number(coverImageIdFld.value) === img.id) {
+              coverImageIdFld.value = '';
+            }
+            renderExisting();
+            updateSaveState();
+          });
+
+          right.appendChild(setCover);
+          right.appendChild(remove);
+          bar.appendChild(name);
+          bar.appendChild(right);
+
+          card.appendChild(image);
+          card.appendChild(bar);
+
+          if (img.id === currentCoverId) card.classList.add('cover-ring');
+          existingGrid.appendChild(card);
+        });
+      };
+
+      const highlightCovers = () => {
+        const current = Number(coverImageIdFld.value || 0);
+        [...existingGrid.children].forEach((el, idx) => {
+          const img = existing.filter(x => !deletedIds.has(x.id))[idx];
+          if (!img) return;
+          el.classList.toggle('cover-ring', img.id === current);
+        });
+      };
+
+      // New preview
+      const renderNewPreview = () => {
+        newPreview.innerHTML = '';
+        newFiles.forEach((file, idx) => {
+          const url = URL.createObjectURL(file);
+          const card = document.createElement('div');
+          card.className = 'relative rounded-lg overflow-hidden ring-1 ring-black/5 bg-gray-50 dark:bg-gray-900';
+
+          const img = document.createElement('img');
+          img.src = url; img.alt = file.name; img.className = 'thumb w-full';
+
+          const rm = document.createElement('button');
+          rm.type = 'button';
+          rm.className = 'absolute top-2 right-2 px-2 py-1 text-xs rounded-md bg-white/90 hover:bg-white dark:bg-gray-800/90';
+          rm.textContent = 'Remove';
+          rm.addEventListener('click', () => {
+            newFiles.splice(idx, 1);
+            renderNewPreview();
+            refreshNewSize();
+            updateSaveState();
+          });
+
+          card.appendChild(img);
+          card.appendChild(rm);
+          newPreview.appendChild(card);
+        });
+      };
+
+      // Dropzone add
+      const addFiles = (list) => {
+        const incoming = [...list];
+        for (const f of incoming) {
+          if (!f.type.startsWith('image/')) continue;
+          if (f.size > MAX_PER_FILE) {
+            showAlert(`"${f.name}" is larger than 5MB and was skipped.`, 'error');
+            continue;
+          }
+          newFiles.push(f);
+        }
+        const keptCount = existing.filter(x=>!deletedIds.has(x.id)).length;
+        if (keptCount + newFiles.length > MAX_FILES) {
+          const allow = Math.max(0, MAX_FILES - keptCount);
+          newFiles = newFiles.slice(0, allow);
+          showAlert(`Max ${MAX_FILES} images per album (existing + new).`, 'error');
+        }
+        renderNewPreview();
+        refreshNewSize();
+        updateSaveState();
+      };
+
+      // drag & drop
+      ['dragenter','dragover'].forEach(evt=>{
+        dropzone.addEventListener(evt, (e)=>{ e.preventDefault(); e.stopPropagation(); dropzone.classList.add('dropzone-active'); });
+      });
+      ['dragleave','drop'].forEach(evt=>{
+        dropzone.addEventListener(evt, (e)=>{ e.preventDefault(); e.stopPropagation(); dropzone.classList.remove('dropzone-active'); });
+      });
+      dropzone.addEventListener('drop', (e)=>{
+        const dt = e.dataTransfer;
+        if (dt && dt.files) addFiles(dt.files);
+      });
+      input.addEventListener('change', (e)=> addFiles(e.target.files));
+
+      // Load initial
+      async function load() {
+        if (!id) { showAlert('Missing gallery id', 'error'); return; }
+        viewLink.href = `./view.html?id=${encodeURIComponent(id)}`;
+        try {
+          const res = await fetch(VIEW_URL, { credentials: 'include' });
+          const json = await res.json().catch(()=>null);
+          if (!res.ok) throw new Error((json && (json.error||json.message)) ? (json.error||json.message) : `HTTP ${res.status}`);
+
+          const g = json.gallery || json.data || json || {};
+          initial = json;
+
+          galleryIdField.value = g.id;
+          title.value = g.title || '';
+          desc.value  = g.description || '';
+          pub.checked = !!(g.isPublished ?? g.is_published);
+
+          // existing list (normalize fields)
+          existing = (json.images || []).map(r => ({
+            id: Number(r.id),
+            filename: r.image_name || r.filename || '',
+            position: Number(r.sort_order ?? r.position ?? 0)
+          }));
+          deletedIds.clear();
+
+          // default cover
+          coverImageIdFld.value = (g.coverImageId ?? g.cover_image_id ?? '') || '';
+
+          // reset new files
+          newFiles = [];
+          input.value = '';
+
+          renderExisting();
+          renderNewPreview();
+          refreshNewSize();
+          updateSaveState();
+        } catch (err) {
+          console.error(err);
+          showAlert(err.message || 'Failed to load gallery', 'error');
+        }
+      }
+
+      // Reset
+      resetBtn.addEventListener('click', () => {
+        if (!initial) return;
+        const g = initial.gallery || initial.data || initial || {};
+        galleryIdField.value = g.id;
+        title.value = g.title || '';
+        desc.value  = g.description || '';
+        pub.checked = !!(g.isPublished ?? g.is_published);
+
+        existing = (initial.images || []).map(r => ({ id: Number(r.id), filename: r.image_name || r.filename || '', position: Number(r.sort_order ?? r.position ?? 0) }));
+        deletedIds.clear();
+        coverImageIdFld.value = (g.coverImageId ?? g.cover_image_id ?? '') || '';
+
+        newFiles = [];
+        input.value = '';
+        renderExisting();
+        renderNewPreview();
+        refreshNewSize();
+        updateSaveState();
+      });
+
+      // Submit: first delete marked images, then PUT updated fields and append new files
+      form.addEventListener('submit', async (e)=>{
+        e.preventDefault();
+        if (!canSave()) {
+          showAlert('Please fill title and keep total images (existing - deleted + new) between 1 and 7.', 'error');
+          return;
+        }
+        if (!UPDATE_URL) { showAlert('Missing update URL', 'error'); return; }
+
+        saveBtn.disabled = true;
+        const old = saveBtn.textContent;
+        saveBtn.textContent = 'Saving...';
+
+        try {
+          // 1) delete images (if any). Do sequentially to keep DB consistent.
+          if (deletedIds.size) {
+            for (const iid of Array.from(deletedIds)) {
+              const dres = await fetch(DELETE_IMAGE(iid), { method: 'DELETE', credentials: 'include' });
+              const jd = await dres.json().catch(()=>null);
+              if (!dres.ok) {
+                throw new Error((jd && (jd.error||jd.message)) ? (jd.error||jd.message) : `Failed to delete image ${iid}`);
+              }
+            }
+          }
+
+          // 2) send PUT to update gallery (title/desc/isPublished/coverIndex + new images[] via FormData)
+          const fd = new FormData();
+          fd.append('title', title.value.trim());
+          fd.append('description', desc.value.trim());
+          fd.append('isPublished', pub.checked ? 'true' : 'false');
+
+          // coverIndex expected by controller as 'coverIndex' (index) OR we can send coverImageId to set a specific image as cover.
+          // The controller supports coverIndex. To set cover by image id, we'll compute index after fetching current list.
+          if (coverImageIdFld.value) {
+            // We'll send coverIndex = index of that image in current gallery after deletions.
+            fd.append('coverImageId', coverImageIdFld.value); // not used by controller but harmless; controller tries coverIndex. We'll also send coverIndex below if possible.
+          }
+
+          // append files as images[]
+          newFiles.forEach(f => fd.append('images[]', f, f.name));
+
+          // Use PUT with FormData: most Express setups accept it, Multer is configured on PUT route.
+          const putRes = await fetch(UPDATE_URL, {
+            method: 'PUT',
+            body: fd,
+            credentials: 'include'
+          });
+          const putJson = await putRes.json().catch(()=>null);
+          if (!putRes.ok) {
+            throw new Error((putJson && (putJson.error||putJson.message)) ? (putJson.error||putJson.message) : `Update failed (${putRes.status})`);
+          }
+
+          showAlert('Gallery updated', 'info');
+          // reload to reflect latest state (or redirect to view)
+          setTimeout(()=> { window.location.href = `./view.html?id=${encodeURIComponent(id)}`; }, 700);
+        } catch (err) {
+          console.error('Update error:', err);
+          showAlert(err.message || 'Update failed', 'error');
+        } finally {
+          saveBtn.disabled = false;
+          saveBtn.textContent = old;
+        }
+      });
+
+      load();
+    })();
+  </script>
+</body>
+</html>

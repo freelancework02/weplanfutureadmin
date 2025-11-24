@@ -6,10 +6,19 @@
   <title>Admin | Gallery</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="../assets/css/custom.css" />
+  <style>
+    .modal-backdrop { background: rgba(0,0,0,.45); }
+    .thumb { object-fit: cover; width: 140px; height: 100px; border-radius: .5rem; }
+    .img-card { background: rgba(255,255,255,0.03); border-radius: .5rem; padding: 6px; display:flex; flex-direction:column; gap:6px; align-items:center; }
+    .danger-btn { color: #dc2626; }
+    #alert { max-width: 900px; margin: 0 auto; }
+  </style>
 </head>
 <body class="h-full bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100">
+  <!-- Backdrop -->
   <div id="backdrop" class="fixed inset-0 bg-black/40 opacity-0 pointer-events-none lg:hidden"></div>
 
+  <!-- Sidebar -->
   <aside id="sidebar" class="fixed top-0 left-0 z-40 h-full w-72 bg-white border-r border-gray-200 dark:bg-gray-800 dark:border-gray-700">
     <div class="flex items-center gap-3 px-5 h-16 border-b border-gray-200 dark:border-gray-700">
       <div class="size-9 rounded-lg bg-emerald-600"></div>
@@ -31,7 +40,9 @@
     </nav>
   </aside>
 
+  <!-- Main -->
   <div class="lg:pl-72 min-h-full">
+    <!-- Topbar -->
     <header class="sticky top-0 z-30 bg-white/80 backdrop-blur border-b border-gray-200 dark:bg-gray-800/80 dark:border-gray-700">
       <div class="h-16 px-4 flex items-center justify-between">
         <div class="flex items-center gap-2">
@@ -45,16 +56,19 @@
       </div>
     </header>
 
-    <main class="p-6 space-y-6">
+    <main class="p-6 space-y-6" data-api-base="http://127.0.0.1:3000/api">
+      <!-- Alerts -->
+      <div id="alert" class="hidden rounded-lg border p-3 text-sm"></div>
+
       <!-- Toolbar -->
       <div class="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
-        <input type="text" placeholder="Search albums…" class="w-full sm:w-80 px-3 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-gray-800 dark:border-gray-700"
-               data-table-filter="#gallery-table" />
-        <div class="text-sm text-gray-500">Showing <b>8</b> albums</div>
+        <input id="search" type="text" placeholder="Search albums…" class="w-full sm:w-80 px-3 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-gray-800 dark:border-gray-700" />
+        <div class="text-sm text-gray-500">Showing <b id="count">0</b> album(s)</div>
       </div>
 
+      <!-- Table -->
       <div class="overflow-x-auto rounded-xl border border-gray-200 bg-white dark:bg-gray-800 dark:border-gray-700">
-        <table id="gallery-table" class="min-w-full text-sm">
+        <table class="min-w-full text-sm">
           <thead class="bg-gray-50 text-gray-600 dark:bg-gray-700 dark:text-gray-300">
             <tr>
               <th class="px-4 py-3 text-left font-medium">Cover</th>
@@ -64,44 +78,218 @@
               <th class="px-4 py-3 text-right font-medium">Actions</th>
             </tr>
           </thead>
-          <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
-            <tr>
-              <td class="px-4 py-3">
-                <img src="https://placehold.co/80x50" alt="" class="rounded-md ring-1 ring-black/5" />
-              </td>
-              <td class="px-4 py-3">Annual Meet 2025</td>
-              <td class="px-4 py-3">120</td>
-              <td class="px-4 py-3">2 days ago</td>
-              <td class="px-4 py-3">
-                <div class="flex items-center gap-1 justify-end">
-                  <button class="px-2 py-1 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700" data-action="view" data-id="101">View</button>
-                  <button class="px-2 py-1 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700" data-action="edit" data-id="101">Edit</button>
-                  <button class="px-2 py-1 rounded-md text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20" data-action="delete" data-id="101">Delete</button>
-                </div>
-              </td>
-            </tr>
-            <tr>
-              <td class="px-4 py-3">
-                <img src="https://placehold.co/80x50?text=Cover" alt="" class="rounded-md ring-1 ring-black/5" />
-              </td>
-              <td class="px-4 py-3">Workshop Series</td>
-              <td class="px-4 py-3">54</td>
-              <td class="px-4 py-3">1 week ago</td>
-              <td class="px-4 py-3">
-                <div class="flex items-center gap-1 justify-end">
-                  <button class="px-2 py-1 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700" data-action="view" data-id="102">View</button>
-                  <button class="px-2 py-1 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700" data-action="edit" data-id="102">Edit</button>
-                  <button class="px-2 py-1 rounded-md text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20" data-action="delete" data-id="102">Delete</button>
-                </div>
-              </td>
-            </tr>
-            <!-- more rows... -->
+          <tbody id="tbody" class="divide-y divide-gray-200 dark:divide-gray-700">
+            <!-- rows injected here -->
           </tbody>
         </table>
+
+        <!-- Empty state -->
+        <div id="empty" class="hidden p-10 text-center text-gray-500 dark:text-gray-400">
+          No albums yet. Click <b>+ New Album</b> to create one.
+        </div>
       </div>
     </main>
   </div>
 
-  <script src="../assets/js/app.js"></script>
+  <script>
+    // base UI (sidebar + theme)
+    (function baseUI(){
+      document.querySelectorAll('[data-toggle="sidebar"]').forEach(btn=>{
+        btn.addEventListener('click', ()=> document.documentElement.classList.toggle('sidebar-open'));
+      });
+      const themeBtn = document.querySelector('[data-toggle="theme"]');
+      const setTheme = t => { document.documentElement.classList.toggle('dark', t === 'dark'); localStorage.setItem('theme', t); };
+      if (themeBtn) themeBtn.addEventListener('click', ()=> setTheme(document.documentElement.classList.contains('dark') ? 'light' : 'dark'));
+      const stored = localStorage.getItem('theme'); if (stored) setTheme(stored);
+    })();
+
+    (function galleryApp(){
+      const apiBase = document.querySelector('main').getAttribute('data-api-base') || '/api';
+      // endpoints
+      const LIST_URL = `${apiBase}/galleries?page=1&per=100`;
+      const GET_GALLERY = id => `${apiBase}/galleries/${encodeURIComponent(id)}`;
+      const IMAGE_BLOB = imageId => `${apiBase}/galleries/image/${encodeURIComponent(imageId)}/blob`;
+      const DELETE_GALLERY = id => `${apiBase}/galleries/${encodeURIComponent(id)}`;
+      const DELETE_IMAGE = imageId => `${apiBase}/galleries/image/${encodeURIComponent(imageId)}`;
+
+      const tbody = document.getElementById('tbody');
+      const empty = document.getElementById('empty');
+      const countEl = document.getElementById('count');
+      const search = document.getElementById('search');
+      const alertBox = document.getElementById('alert');
+
+      let items = [];
+      let filtered = [];
+
+      const showAlert = (msg, type = 'info') => {
+        alertBox.className = 'rounded-lg border p-3 text-sm mx-auto ' + (
+          type === 'error'
+            ? 'border-red-200 bg-red-50 text-red-800 dark:border-red-900/40 dark:bg-red-900/20 dark:text-red-100'
+            : 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900/40 dark:bg-emerald-900/20 dark:text-emerald-100'
+        );
+        alertBox.textContent = msg;
+        alertBox.classList.remove('hidden');
+      };
+
+      const hideAlert = () => alertBox.classList.add('hidden');
+
+      const timeAgo = (iso) => {
+        if (!iso) return '';
+        const then = new Date(String(iso).replace(' ', 'T'));
+        const diff = (Date.now() - then.getTime()) / 1000;
+        if (diff < 60) return 'just now';
+        if (diff < 3600) return Math.floor(diff / 60) + ' min ago';
+        if (diff < 86400) return Math.floor(diff / 3600) + ' hr ago';
+        return Math.floor(diff / 86400) + ' day(s) ago';
+      };
+
+      const render = () => {
+        tbody.innerHTML = '';
+        if (!filtered.length) {
+          empty.classList.remove('hidden');
+          countEl.textContent = '0';
+          return;
+        }
+        empty.classList.add('hidden');
+        countEl.textContent = String(filtered.length);
+
+        for (const g of filtered) {
+          const tr = document.createElement('tr');
+
+          // COVER
+          const coverTd = document.createElement('td');
+          coverTd.className = 'px-4 py-3';
+          const coverImg = document.createElement('img');
+          coverImg.src = g.coverImageId ? IMAGE_BLOB(g.coverImageId) : 'https://placehold.co/140x100?text=Cover';
+          coverImg.alt = '';
+          coverImg.className = 'rounded-md ring-1 ring-black/5';
+          coverImg.width = 140; coverImg.height = 100;
+          coverTd.appendChild(coverImg);
+
+          // TITLE
+          const titleTd = document.createElement('td');
+          titleTd.className = 'px-4 py-3';
+          const titleEl = document.createElement('div');
+          titleEl.className = 'font-medium';
+          titleEl.textContent = g.title || `Gallery ${g.id}`;
+          const descEl = document.createElement('div');
+          descEl.className = 'text-xs text-gray-500';
+          descEl.textContent = g.description || '';
+          titleTd.appendChild(titleEl); titleTd.appendChild(descEl);
+
+          // PHOTOS
+          const photosTd = document.createElement('td');
+          photosTd.className = 'px-4 py-3';
+          photosTd.textContent = g.photoCount ?? 0;
+
+          // UPDATED
+          const updatedTd = document.createElement('td');
+          updatedTd.className = 'px-4 py-3';
+          updatedTd.textContent = timeAgo(g.updatedAt || g.createdAt);
+
+          // ACTIONS
+          const actionsTd = document.createElement('td');
+          actionsTd.className = 'px-4 py-3';
+          const wrap = document.createElement('div');
+          wrap.className = 'flex items-center gap-1 justify-end';
+
+          // VIEW -> navigate to view.html?id=...
+          const viewLink = document.createElement('a');
+          viewLink.href = `./view.html?id=${encodeURIComponent(g.id)}`;
+          viewLink.className = 'px-2 py-1 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700';
+          viewLink.textContent = 'View';
+
+          const editBtn = document.createElement('a');
+          editBtn.href = `./edit.html?id=${encodeURIComponent(g.id)}`;
+          editBtn.className = 'px-2 py-1 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700';
+          editBtn.textContent = 'Edit';
+
+          const delBtn = document.createElement('button');
+          delBtn.className = 'px-2 py-1 rounded-md text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20';
+          delBtn.textContent = 'Delete';
+          delBtn.addEventListener('click', async () => {
+            const ok = confirm(`Delete album "${g.title}"? This cannot be undone.`);
+            if (!ok) return;
+            try {
+              const res = await fetch(DELETE_GALLERY(g.id), { method: 'DELETE', credentials: 'include' });
+              const json = await res.json().catch(()=>({}));
+              if (!res.ok) throw new Error(json.error || 'Delete failed');
+              items = items.filter(x => x.id !== g.id);
+              filtered = filtered.filter(x => x.id !== g.id);
+              render();
+              showAlert('Album deleted.', 'info');
+            } catch (err) {
+              console.error('Delete gallery error:', err);
+              showAlert(err.message || 'Delete failed', 'error');
+            }
+          });
+
+          wrap.appendChild(viewLink);
+          wrap.appendChild(editBtn);
+          wrap.appendChild(delBtn);
+          actionsTd.appendChild(wrap);
+
+          tr.appendChild(coverTd);
+          tr.appendChild(titleTd);
+          tr.appendChild(photosTd);
+          tr.appendChild(updatedTd);
+          tr.appendChild(actionsTd);
+          tbody.appendChild(tr);
+        }
+      };
+
+      const doFilter = () => {
+        const q = search.value.trim().toLowerCase();
+        filtered = !q ? [...items] : items.filter(g =>
+          String(g.title || '').toLowerCase().includes(q) ||
+          String(g.description || '').toLowerCase().includes(q)
+        );
+        render();
+      };
+
+      // load list of galleries
+      const load = async () => {
+        try {
+          hideAlert();
+          console.info('Fetching list from', LIST_URL);
+          const res = await fetch(LIST_URL, { credentials: 'include' });
+          const json = await res.json().catch(()=>null);
+          if (!res.ok) {
+            console.error('LIST fetch failed', json);
+            throw new Error(json && (json.error || json.message) ? (json.error || json.message) : `HTTP ${res.status}`);
+          }
+
+          // Accept different shapes: { data: rows }, { items: rows }, or top-level array
+          const list = Array.isArray(json.data) ? json.data : (Array.isArray(json.items) ? json.items : (Array.isArray(json) ? json : []));
+          console.info('Loaded galleries count', list.length);
+          items = list.map(r => ({
+            id: Number(r.id),
+            title: r.title || '',
+            description: r.description || '',
+            isPublished: !!(r.is_published ?? r.isPublished),
+            coverImageId: r.cover_image_id ?? r.coverImageId ?? null,
+            createdAt: r.created_at ?? r.createdAt ?? null,
+            updatedAt: r.updated_at ?? r.updatedAt ?? null,
+            photoCount: Number(r.images_count ?? r.photoCount ?? r.photo_count ?? 0)
+          }));
+          filtered = [...items];
+          render();
+        } catch (err) {
+          console.error('Load galleries error:', err);
+          items = []; filtered = [];
+          render();
+          showAlert(err.message || 'Failed to load gallery list', 'error');
+        }
+      };
+
+      // search
+      search.addEventListener('input', () => {
+        doFilter();
+      });
+
+      // initial
+      load();
+    })();
+  </script>
 </body>
 </html>

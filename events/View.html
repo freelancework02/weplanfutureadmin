@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Admin | View Event</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="../assets/css/custom.css" />
+  <style>
+    .img-thumb{aspect-ratio:4/3;object-fit:cover;border-radius:.5rem}
+    .lb { position: fixed; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,.85); z-index:60; }
+    .lb img{ max-width:96vw; max-height:90vh; object-fit:contain; border-radius:.5rem; }
+    /* ensure content cards match theme */
+    .card { background: #ffffff; }
+    .dark .card { background: #111827; }
+  </style>
+</head>
+<body class="h-full bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100">
+  <!-- Sidebar (kept simple) -->
+  <aside class="fixed top-0 left-0 z-40 h-full w-72 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700">
+    <div class="flex items-center gap-3 px-5 h-16 border-b border-gray-200 dark:border-gray-700">
+      <div class="size-9 rounded-lg bg-emerald-600"></div>
+      <div class="font-semibold">Admin Panel</div>
+    </div>
+  </aside>
+
+  <div class="lg:pl-72 min-h-full">
+    <header class="sticky top-0 z-30 bg-white/80 dark:bg-gray-800/80 backdrop-blur border-b border-gray-200 dark:border-gray-700">
+      <div class="h-16 px-4 flex items-center justify-between">
+        <div><h1 class="text-lg font-semibold">View Event</h1></div>
+        <div class="flex gap-2">
+          <a id="editLink" href="#" class="px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">Edit</a>
+          <a href="./" class="px-3 py-1.5 rounded-lg bg-slate-800 text-white">Back</a>
+        </div>
+      </div>
+    </header>
+
+    <main class="p-6" data-api-base="http://127.0.0.1:3000/api">
+      <section class="max-w-5xl mx-auto card rounded-2xl border bg-gray-800 dark:border-gray-700 p-6 shadow-sm space-y-4">
+        <div class="flex gap-6 items-start">
+          <div class="w-72">
+            <img id="cover" class="w-full h-44 object-cover rounded-xl bg-gray-100 dark:bg-gray-900" src="https://placehold.co/600x400?text=Cover" alt="cover"/>
+          </div>
+          <div class="flex-1 min-w-0">
+            <h2 id="title" class="text-2xl font-bold truncate">—</h2>
+            <div id="meta" class="text-sm text-gray-500 mt-2">—</div>
+            <p id="description" class="mt-4 text-gray-700 dark:text-gray-300 whitespace-pre-line">—</p>
+
+            <div class="mt-4 grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+              <div class="p-3 rounded-lg bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700">
+                <div class="text-gray-500">Photos</div>
+                <div id="photoCount" class="font-semibold">0</div>
+              </div>
+              <div class="p-3 rounded-lg bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700">
+                <div class="text-gray-500">Date</div>
+                <div id="eventDate" class="font-semibold">—</div>
+              </div>
+              <div class="p-3 rounded-lg bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700">
+                <div class="text-gray-500">Hosted</div>
+                <div id="hostedBy" class="font-semibold">—</div>
+              </div>
+              <div class="p-3 rounded-lg bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700">
+                <div class="text-gray-500">Link</div>
+                <div id="link" class="font-semibold truncate">—</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <h3 class="text-lg font-semibold mb-2">Photos</h3>
+          <div id="grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4"></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="lightbox" class="hidden lb items-center justify-center">
+    <img id="lbImg" src="" alt="preview" />
+  </div>
+
+  <script>
+    (function(){
+      const API_BASE = document.querySelector('main').getAttribute('data-api-base').replace(/\/$/,'');
+      const params = new URLSearchParams(location.search);
+      const id = params.get('id');
+
+      const titleEl = document.getElementById('title');
+      const metaEl = document.getElementById('meta');
+      const descriptionEl = document.getElementById('description');
+      const cover = document.getElementById('cover');
+      const grid = document.getElementById('grid');
+      const photoCount = document.getElementById('photoCount');
+      const eventDateEl = document.getElementById('eventDate');
+      const hostedByEl = document.getElementById('hostedBy');
+      const linkEl = document.getElementById('link');
+      const editLink = document.getElementById('editLink');
+      const lb = document.getElementById('lightbox');
+      const lbImg = document.getElementById('lbImg');
+
+      function imgUrl(id){ return API_BASE + '/events/image/' + encodeURIComponent(id) + '/blob'; }
+      function fmt(s){ if(!s) return '—'; try { const d = new Date(String(s).replace(' ', 'T')); return d.toLocaleString(); } catch(e) { return String(s); } }
+
+      async function load(){
+        if (!id){ alert('Missing id'); return; }
+        editLink.href = './edit.html?id=' + encodeURIComponent(id);
+        try {
+          const res = await fetch(API_BASE + '/events/' + id, { credentials:'include' });
+          const json = await res.json().catch(()=>null);
+          if (!res.ok) throw new Error((json && (json.error||json.message)) || `HTTP ${res.status}`);
+          // support { event, images } or { event:..., images:[] } or { data/... }
+          const ev = json.event || json.data || json;
+          const imgs = Array.isArray(json.images) ? json.images : (Array.isArray(ev.images) ? ev.images : (Array.isArray(json.data) ? json.data : []));
+
+          titleEl.textContent = ev.title || `Event ${id}`;
+          descriptionEl.textContent = ev.description || '';
+          eventDateEl.textContent = ev.event_date ? fmt(ev.event_date) : '—';
+          hostedByEl.textContent = ev.hosted_by || '—';
+          linkEl.textContent = ev.link || '—';
+          metaEl.textContent = `Created: ${ev.created_at || '—'}${ev.updated_at ? ' • Updated: ' + ev.updated_at : ''}`;
+
+          const coverId = ev.cover_image_id ?? ev.coverImageId ?? null;
+          cover.src = coverId ? imgUrl(coverId) : 'https://placehold.co/600x400?text=Cover';
+
+          // images
+          const images = imgs.map(i => ({ id: Number(i.id), name: i.image_name || i.filename || '' }));
+          photoCount.textContent = images.length;
+          grid.innerHTML = '';
+          if (!images.length){ grid.innerHTML = '<div class="text-gray-500 dark:text-gray-400">No photos</div>'; return; }
+
+          images.forEach((im)=>{
+            const btn = document.createElement('button'); btn.className='rounded-lg overflow-hidden ring-1 ring-black/5 bg-white dark:bg-gray-800';
+            const img = document.createElement('img'); img.src = imgUrl(im.id); img.className='img-thumb w-full'; img.alt = im.name || '';
+            btn.appendChild(img);
+            btn.addEventListener('click', ()=>{ lbImg.src = img.src; lb.classList.remove('hidden'); });
+            grid.appendChild(btn);
+          });
+
+        } catch (err){ console.error(err); alert(err.message || 'Load failed'); }
+      }
+
+      lb.addEventListener('click', ()=> lb.classList.add('hidden'));
+      window.addEventListener('keydown', e=>{ if (e.key==='Escape') lb.classList.add('hidden'); });
+      load();
+    })();
+  </script>
+</body>
+</html>

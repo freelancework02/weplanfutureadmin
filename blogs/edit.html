@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Admin | Edit Blog</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="../assets/css/custom.css" />
+  <link href="https://cdn.jsdelivr.net/npm/quill@1.3.7/dist/quill.snow.css" rel="stylesheet" />
+  <style>
+    .thumb { aspect-ratio: 16 / 9; object-fit: cover; border-radius: .5rem; }
+    .cover-ring { box-shadow: 0 0 0 3px rgba(16,185,129,.12) inset; border: 2px solid rgba(16,185,129,.18); }
+    .grid-auto-fit { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
+    .img-card { position: relative; border-radius: .5rem; overflow: hidden; background: rgba(255,255,255,0.02); }
+    #alert { max-width: 900px; margin: 0 auto; }
+    .dropzone-active { border-color:#2563eb; background:#eff6ff; }
+  </style>
+</head>
+<body class="h-full bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100">
+  <div id="backdrop" class="fixed inset-0 bg-black/40 opacity-0 pointer-events-none lg:hidden"></div>
+
+  <aside id="sidebar" class="fixed top-0 left-0 z-40 h-full w-72 bg-white border-r border-gray-200 dark:bg-gray-800 dark:border-gray-700">
+    <div class="flex items-center gap-3 px-5 h-16 border-b border-gray-200 dark:border-gray-700">
+      <div class="size-9 rounded-lg bg-emerald-600"></div>
+      <div class="font-semibold">Admin Panel</div>
+    </div>
+    <nav class="p-3">
+      <a href="../index.html" class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">🏠 Dashboard</a>
+      <a href="./" class="flex items-center gap-3 px-3 py-2 rounded-lg mt-1 hover:bg-gray-100 dark:hover:bg-gray-700">📝 Blogs</a>
+      <a href="../gallery/" class="flex items-center gap-3 px-3 py-2 rounded-lg mt-1 hover:bg-gray-100 dark:hover:bg-gray-700">🖼️ Gallery</a>
+    </nav>
+  </aside>
+
+  <div class="lg:pl-72 min-h-full">
+    <header class="sticky top-0 z-30 bg-white/80 backdrop-blur border-b border-gray-200 dark:bg-gray-800/80 dark:border-gray-700">
+      <div class="h-16 px-4 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <button class="lg:hidden p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700" data-toggle="sidebar">☰</button>
+          <h1 class="text-lg font-semibold">Edit Blog</h1>
+        </div>
+        <div class="flex items-center gap-2">
+          <button id="themeToggle" class="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700">🌓</button>
+          <a id="viewLink" class="px-3 py-1.5 rounded-lg border border-gray-300 hover:bg-gray-100" href="#">View</a>
+          <a href="./" class="px-3 py-1.5 rounded-lg bg-slate-800 text-white hover:bg-slate-900">Back</a>
+        </div>
+      </div>
+    </header>
+
+    <main class="p-6" data-api-base="http://127.0.0.1:3000/api">
+      <div id="alert" class="hidden rounded-lg border p-3 text-sm mb-4"></div>
+
+      <form id="editForm" class="max-w-5xl mx-auto space-y-6  rounded-2xl border border-gray-200 p-6 shadow-sm dark:bg-gray-800 dark:border-gray-700">
+        <input type="hidden" id="blogId" name="id" value="" />
+        <input type="hidden" id="coverImageId" name="coverImageId" value="" />
+
+        <div>
+          <label class="block text-sm font-medium mb-1">Title <span class="text-red-600">*</span></label>
+          <input id="title" name="title" type="text" required class="bg-gray-800 w-full rounded-lg border px-3 py-2" placeholder="Blog title" />
+        </div>
+
+        <div>
+          <div class="flex items-center justify-between mb-1">
+            <label class="block text-sm font-medium">Content</label>
+            <div class="text-xs  text-gray-500 dark:text-gray-300">Words: <span id="wordCount">0</span></div>
+          </div>
+          <div id="toolbar" class="ql-toolbar ql-snow bg-gray-100 rounded-t-xl"></div>
+          <div id="editor" class="bg-gray-800 dark:bg-gray-900 rounded-b-xl"></div>
+          <input type="hidden" id="content_html" name="content_html" />
+          <input type="hidden" id="content_delta" name="content_delta" />
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium mb-2">Existing Images</label>
+          <div id="existingGrid" class="grid gap-4 grid-auto-fit" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr));"></div>
+          <div id="existingEmpty" class="text-sm text-gray-500 hidden">No photos yet.</div>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium mb-2">Add new images</label>
+          <div id="dropzone" class="rounded-xl border-2 border-dashed p-6 text-center">
+            <div class="mx-auto max-w-lg">
+              <p class="font-medium">Drag & drop images here</p>
+              <p class="text-sm text-gray-500 mt-1">or</p>
+              <div class="mt-3">
+                <label for="images" class="inline-flex items-center px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 cursor-pointer">Choose files</label>
+                <input id="images" name="images[]" type="file" multiple accept="image/*" class="hidden" />
+              </div>
+              <p class="text-xs text-gray-500 mt-3">Up to 6 new images, 6MB each.</p>
+              <p id="sizeInfo" class="text-xs text-gray-500 mt-1">New files total: 0 MB</p>
+            </div>
+          </div>
+          <div id="newPreview" class="grid gap-4 grid-auto-fit mt-4" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr));"></div>
+        </div>
+
+        <div class="flex items-center gap-3">
+          <input id="isPublished" name="isPublished" type="checkbox" class="size-4" />
+          <label for="isPublished" class="text-sm">Published</label>
+        </div>
+
+        <div class="flex items-center justify-between pt-2">
+          <button type="button" id="resetBtn" class="px-4 py-2 rounded-lg border">Reset</button>
+          <button id="saveBtn" type="submit" class="px-5 py-2.5 rounded-lg bg-indigo-600 text-white">Save changes</button>
+        </div>
+      </form>
+    </main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/quill@1.3.7/dist/quill.min.js"></script>
+  <script>
+    // toolbar markup
+    (function buildToolbar(){
+      const tb = document.getElementById('toolbar');
+      tb.innerHTML = `
+        <span class="ql-formats"><select class="ql-font"></select><select class="ql-size"></select></span>
+        <span class="ql-formats"><button class="ql-bold"></button><button class="ql-italic"></button><button class="ql-underline"></button><button class="ql-strike"></button></span>
+        <span class="ql-formats"><select class="ql-color"></select><select class="ql-background"></select></span>
+        <span class="ql-formats"><button class="ql-blockquote"></button><button class="ql-code-block"></button></span>
+        <span class="ql-formats"><button class="ql-list" value="ordered"></button><button class="ql-list" value="bullet"></button><select class="ql-align"></select></span>
+        <span class="ql-formats"><button class="ql-link"></button><button class="ql-clean"></button></span>
+      `;
+    })();
+
+    // base UI
+    (function baseUI(){
+      document.querySelectorAll('[data-toggle="sidebar"]').forEach(btn=> btn.addEventListener('click', ()=>document.documentElement.classList.toggle('sidebar-open')));
+      const themeToggle = document.getElementById('themeToggle');
+      themeToggle?.addEventListener('click', ()=> {
+        const now = document.documentElement.classList.toggle('dark');
+        localStorage.setItem('theme', now ? 'dark' : 'light');
+      });
+      const stored = localStorage.getItem('theme'); if (stored) document.documentElement.classList.toggle('dark', stored === 'dark');
+    })();
+
+    (function editBlog(){
+      const apiBase = document.querySelector('main').getAttribute('data-api-base') || '/api';
+      const params = new URLSearchParams(location.search);
+      const id = params.get('id');
+      if (!id) {
+        alert('Missing id in query string; use ?id=...');
+        return;
+      }
+
+      const GET_URL = `${apiBase}/blogs/${encodeURIComponent(id)}`;
+      const UPDATE_URL = `${apiBase}/blogs/${encodeURIComponent(id)}`; // try PUT to this
+      const IMG_BLOB = imgId => `${apiBase}/blogs/image/${encodeURIComponent(imgId)}/blob`;
+      const DELETE_IMAGE = imgId => `${apiBase}/blogs/image/${encodeURIComponent(imgId)}`;
+
+      // Quill init
+      const quill = new Quill('#editor', { theme: 'snow', modules: { toolbar: '#toolbar' }, placeholder: 'Write your blog content...' });
+
+      // DOM
+      const alertBox = document.getElementById('alert');
+      const showAlert = (msg, type='info', hideAfter = 3000) => {
+        alertBox.className = 'rounded-lg border p-3 text-sm ' + (type==='error' ? 'border-red-200 bg-red-50 text-red-800' : 'border-emerald-200 bg-emerald-50 text-emerald-800');
+        alertBox.textContent = msg; alertBox.classList.remove('hidden');
+        if (hideAfter) setTimeout(()=> alertBox.classList.add('hidden'), hideAfter);
+      };
+
+      const blogIdField = document.getElementById('blogId');
+      const coverImageIdFld = document.getElementById('coverImageId');
+      const titleEl = document.getElementById('title');
+      const isPublished = document.getElementById('isPublished');
+      const wordCount = document.getElementById('wordCount');
+
+      const existingGrid = document.getElementById('existingGrid');
+      const existingEmpty = document.getElementById('existingEmpty');
+
+      const input = document.getElementById('images');
+      const newPreview = document.getElementById('newPreview');
+      const dropzone = document.getElementById('dropzone');
+      const sizeInfo = document.getElementById('sizeInfo');
+
+      const resetBtn = document.getElementById('resetBtn');
+      const saveBtn = document.getElementById('saveBtn');
+      const viewLink = document.getElementById('viewLink');
+
+      // state
+      const MAX_NEW = 6;
+      const MAX_PER_FILE = 6 * 1024 * 1024;
+      let serverSnapshot = null;
+      let existing = []; // { id, image_name }
+      let deletedIds = new Set();
+      let newFiles = [];
+
+      const bytesToMB = b => Math.round((b/(1024*1024))*10)/10;
+
+      // helpers
+      const refreshNewSize = ()=> {
+        const total = newFiles.reduce((s,f)=>s+f.size,0);
+        sizeInfo.textContent = 'New files total: ' + bytesToMB(total) + ' MB';
+      };
+
+      function fmtDate(s) {
+        if (!s) return '—';
+        const d = new Date(String(s).replace(' ', 'T'));
+        if (isNaN(d)) return s;
+        return d.toLocaleString();
+      }
+
+      function normalizeGetResponse(json) {
+        if (!json) return { blog: {}, images: [] };
+        if (json.blog || json.images) return { blog: json.blog || json.data || {}, images: json.images || [] };
+        if (json.data && (json.data.title || json.data.content_html)) return { blog: json.data, images: json.images || [] };
+        return { blog: json, images: Array.isArray(json.images) ? json.images : [] };
+      }
+
+      // Render existing images
+      function renderExisting() {
+        existingGrid.innerHTML = '';
+        const kept = existing.filter(x => !deletedIds.has(x.id));
+        if (!kept.length) existingEmpty.classList.remove('hidden'); else existingEmpty.classList.add('hidden');
+
+        const currentCover = Number(coverImageIdFld.value || 0);
+        kept.forEach(img => {
+          const card = document.createElement('div');
+          card.className = 'img-card';
+
+          const image = document.createElement('img');
+          image.className = 'thumb w-full';
+          image.src = IMG_BLOB(img.id);
+          image.alt = img.image_name || '';
+
+          // bottom overlay
+          const bar = document.createElement('div');
+          bar.className = 'absolute left-0 right-0 bottom-0 p-2 flex items-center justify-between text-xs text-white bg-gradient-to-t from-black/60 to-transparent';
+
+          const name = document.createElement('span'); name.textContent = img.image_name || `img-${img.id}`;
+          const controls = document.createElement('div'); controls.className = 'flex gap-2';
+
+          const setCover = document.createElement('button');
+          setCover.type='button'; setCover.className='px-2 py-1 rounded-md bg-white/90 text-gray-900 text-xs';
+          setCover.textContent = 'Set cover';
+          setCover.addEventListener('click', ()=> {
+            coverImageIdFld.value = String(img.id);
+            highlightCovers();
+            showAlert('Cover selected (will save on submit)', 'info', 1600);
+          });
+
+          const delNow = document.createElement('button');
+          delNow.type='button'; delNow.className='px-2 py-1 rounded-md bg-red-50 text-red-700 text-xs';
+          delNow.textContent = 'Delete';
+          // immediate delete (simpler UX). If you prefer "mark for deletion" only, change this behavior.
+          delNow.addEventListener('click', async () => {
+            if (!confirm('Delete this image from server permanently?')) return;
+            try {
+              const r = await fetch(DELETE_IMAGE(img.id), { method: 'DELETE', credentials: 'include' });
+              const jr = await r.json().catch(()=>null);
+              if (!r.ok) throw new Error((jr && (jr.error||jr.message)) || `Failed (${r.status})`);
+              // remove from local lists
+              existing = existing.filter(x => x.id !== img.id);
+              deletedIds.delete(img.id);
+              if (Number(coverImageIdFld.value) === img.id) coverImageIdFld.value = '';
+              renderExisting();
+              showAlert('Image deleted', 'info', 1500);
+            } catch (err) {
+              console.error('delete image error', err);
+              showAlert(err.message || 'Delete failed', 'error', 3000);
+            }
+          });
+
+          controls.appendChild(setCover);
+          controls.appendChild(delNow);
+          bar.appendChild(name);
+          bar.appendChild(controls);
+
+          card.appendChild(image);
+          card.appendChild(bar);
+
+          if (img.id === currentCover) card.classList.add('cover-ring');
+          existingGrid.appendChild(card);
+        });
+      }
+
+      function highlightCovers() {
+        const cur = Number(coverImageIdFld.value || 0);
+        [...existingGrid.children].forEach((el, idx) => {
+          const img = existing.filter(x=>x && !deletedIds.has(x.id))[idx];
+          if (!img) return;
+          el.classList.toggle('cover-ring', img.id === cur);
+        });
+      }
+
+      function renderNewPreview() {
+        newPreview.innerHTML = '';
+        newFiles.forEach((file, idx) => {
+          const url = URL.createObjectURL(file);
+          const card = document.createElement('div');
+          card.className = 'img-card';
+
+          const img = document.createElement('img');
+          img.src = url; img.alt = file.name; img.className = 'thumb w-full';
+
+          const rm = document.createElement('button');
+          rm.type='button'; rm.className='absolute top-2 right-2 px-2 py-1 text-xs rounded-md bg-white/90';
+          rm.textContent = 'Remove';
+          rm.addEventListener('click', ()=> { newFiles.splice(idx,1); renderNewPreview(); refreshNewSize(); });
+
+          card.appendChild(img); card.appendChild(rm);
+          newPreview.appendChild(card);
+        });
+      }
+
+      // Drag & drop + file selection
+      const addFiles = (fileList) => {
+        const incoming = Array.from(fileList || []);
+        for (const f of incoming) {
+          if (!f.type.startsWith('image/')) continue;
+          if (f.size > MAX_PER_FILE) { showAlert(`"${f.name}" > 6MB (skipped)`, 'error'); continue; }
+          if (newFiles.length >= MAX_NEW) { showAlert(`Max ${MAX_NEW} new images`, 'error'); break; }
+          newFiles.push(f);
+        }
+        renderNewPreview(); refreshNewSize();
+      };
+
+      ['dragenter','dragover'].forEach(ev => dropzone.addEventListener(ev, e=>{ e.preventDefault(); e.stopPropagation(); dropzone.classList.add('dropzone-active'); }));
+      ['dragleave','drop'].forEach(ev => dropzone.addEventListener(ev, e=>{ e.preventDefault(); e.stopPropagation(); dropzone.classList.remove('dropzone-active'); }));
+      dropzone.addEventListener('drop', (e)=> { const dt = e.dataTransfer; if (dt && dt.files) addFiles(dt.files); });
+      input.addEventListener('change', (e)=> addFiles(e.target.files));
+
+      // Load the blog and images from server
+      async function load() {
+        try {
+          const r = await fetch(GET_URL, { credentials: 'include' });
+          const json = await r.json().catch(()=>null);
+          if (!r.ok) {
+            console.error('GET failed', r.status, json);
+            throw new Error((json && (json.error||json.message)) || `HTTP ${r.status}`);
+          }
+          const { blog, images } = normalizeGetResponse(json);
+          serverSnapshot = { blog, images };
+
+          blogIdField.value = blog.id ?? id;
+          titleEl.value = blog.title ?? '';
+          // set content: prefer content_html; if content_delta use setContents
+          if (blog.content_html) {
+            quill.clipboard.dangerouslyPasteHTML(blog.content_html);
+          } else if (blog.content_delta) {
+            try {
+              const delta = typeof blog.content_delta === 'string' ? JSON.parse(blog.content_delta) : blog.content_delta;
+              quill.setContents(delta);
+            } catch (e) {
+              quill.clipboard.dangerouslyPasteHTML(blog.content_delta || '');
+            }
+          } else {
+            quill.setText(blog.content || '');
+          }
+
+          isPublished.checked = !!(blog.is_published ?? blog.isPublished);
+          existing = (images || []).map(it => ({ id: Number(it.id), image_name: it.image_name || it.filename || '' }));
+          deletedIds.clear();
+          newFiles = [];
+          coverImageIdFld.value = blog.cover_image_id ?? blog.coverImageId ?? '';
+
+          renderExisting(); renderNewPreview(); refreshNewSize(); updateWordCount();
+          viewLink.href = `./view.html?id=${encodeURIComponent(id)}`;
+          showAlert('Loaded from server', 'info', 1200);
+        } catch (err) {
+          console.error('load error', err);
+          showAlert(err.message || 'Failed to load', 'error', 4000);
+        }
+      }
+
+      // Reset to server snapshot
+      resetBtn.addEventListener('click', ()=>{
+        if (!serverSnapshot) return;
+        const g = serverSnapshot.blog || {};
+        titleEl.value = g.title || '';
+        if (g.content_html) quill.clipboard.dangerouslyPasteHTML(g.content_html);
+        else if (g.content_delta) { try { quill.setContents(JSON.parse(g.content_delta)); } catch(e){ quill.clipboard.dangerouslyPasteHTML(g.content_delta||''); } }
+        else quill.setText(g.content||'');
+        isPublished.checked = !!(g.is_published || g.isPublished);
+        existing = (serverSnapshot.images||[]).map(r=>({ id: Number(r.id), image_name: r.image_name || r.filename || '' }));
+        deletedIds.clear(); newFiles=[]; document.getElementById('images').value = '';
+        coverImageIdFld.value = g.cover_image_id ?? g.coverImageId ?? '';
+        renderExisting(); renderNewPreview(); refreshNewSize(); updateWordCount();
+        showAlert('Reset to server state', 'info', 1000);
+      });
+
+      // word count update
+      function updateWordCount(){
+        const div = document.createElement('div'); div.innerHTML = quill.root.innerHTML;
+        const txt = (div.textContent || '').trim().replace(/\s+/g,' ');
+        wordCount.textContent = txt ? txt.split(/\s+/).length : 0;
+      }
+      quill.on('text-change', updateWordCount);
+
+      // Submit: try PUT first; if server returns 405/501 treat as not allowed and fallback to POST + _method=PUT
+      document.getElementById('editForm').addEventListener('submit', async (e)=>{
+        e.preventDefault();
+        if (!titleEl.value.trim()) { showAlert('Title is required', 'error', 2200); return; }
+
+        // prepare formdata
+        const fd = new FormData();
+        fd.append('title', titleEl.value.trim());
+        fd.append('content_html', quill.root.innerHTML);
+        try { fd.append('content_delta', JSON.stringify(quill.getContents())); } catch(e){}
+        fd.append('isPublished', isPublished.checked ? 'true' : 'false');
+        if (coverImageIdFld.value) fd.append('coverImageId', coverImageIdFld.value);
+
+        // If user used immediate deletes, server already removed items; no need to send delete list.
+        // But for safety, if we used marking approach you'd send deleteImageIds. (we used immediate delete button above)
+        // If you prefer "mark only" behaviour, swap UI accordingly and append fd.append('deleteImageIds', Array.from(deletedIds).join(','));
+
+        for (const f of newFiles) fd.append('images[]', f, f.name);
+
+        saveBtn.disabled = true;
+        const old = saveBtn.textContent; saveBtn.textContent = 'Saving...';
+
+        try {
+          // try PUT
+          let res = await fetch(UPDATE_URL, { method: 'PUT', body: fd, credentials: 'include' });
+          if (res.status === 405 || res.status === 501) {
+            // fallback: some servers don't accept multipart PUT; use POST with _method=PUT
+            fd.append('_method', 'PUT');
+            res = await fetch(UPDATE_URL, { method: 'POST', body: fd, credentials: 'include' });
+          }
+          const json = await res.json().catch(()=>null);
+          if (!res.ok) {
+            console.error('save failed', res.status, json);
+            throw new Error((json && (json.error||json.message)) || `Save failed (${res.status})`);
+          }
+          showAlert('Saved successfully — redirecting to view', 'info', 1200);
+          setTimeout(()=> { location.href = `./view.html?id=${encodeURIComponent(id)}`; }, 800);
+        } catch (err) {
+          console.error('submit error', err);
+          showAlert(err.message || 'Update failed', 'error', 3000);
+        } finally {
+          saveBtn.disabled = false; saveBtn.textContent = old;
+        }
+      });
+
+      // init
+      load();
+    })();
+  </script>
+</body>
+</html>

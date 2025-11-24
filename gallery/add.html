@@ -7,7 +7,6 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="../assets/css/custom.css" />
   <style>
-    /* Small niceties for the dropzone and preview grid */
     .dropzone-active { border-color: rgb(34 197 94); background: rgb(240 253 244); }
     .thumb { aspect-ratio: 4 / 3; object-fit: cover; }
     .cover-ring { box-shadow: 0 0 0 2px rgba(16,185,129,.9) inset; }
@@ -17,7 +16,7 @@
   <!-- Backdrop -->
   <div id="backdrop" class="fixed inset-0 bg-black/40 opacity-0 pointer-events-none lg:hidden"></div>
 
-  <!-- Sidebar (same as your other pages; keep links consistent) -->
+  <!-- Sidebar -->
   <aside id="sidebar" class="fixed top-0 left-0 z-40 h-full w-72 bg-white border-r border-gray-200 dark:bg-gray-800 dark:border-gray-700">
     <div class="flex items-center gap-3 px-5 h-16 border-b border-gray-200 dark:border-gray-700">
       <div class="size-9 rounded-lg bg-emerald-600"></div>
@@ -50,8 +49,10 @@
     </header>
 
     <main class="p-6">
+      <!-- data-endpoint lets you change backend URL in one place -->
       <form id="addGalleryForm" class="max-w-4xl mx-auto space-y-6 bg-white rounded-2xl border border-gray-200 p-6 shadow-sm dark:bg-gray-800 dark:border-gray-700"
-            action="/api/galleries" method="POST" enctype="multipart/form-data">
+            method="POST" enctype="multipart/form-data"
+            data-endpoint="http://127.0.0.1:3000/api/galleries">
         <!-- Title -->
         <div>
           <label for="title" class="block text-sm font-medium mb-1">Title <span class="text-red-600">*</span></label>
@@ -92,10 +93,11 @@
                 <label for="images" class="inline-flex items-center px-4 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 cursor-pointer">
                   Choose files
                 </label>
-                <input id="images" name="images" type="file" multiple accept="image/*" class="hidden" />
+                <!-- name="images[]" is important for Multer (Node.js) upload.array('images[]') -->
+                <input id="images" name="images[]" type="file" multiple accept="image/*" class="hidden" />
               </div>
               <p class="text-xs text-gray-500 mt-3">
-                Up to <b id="limitCount">50</b> images, max <b>5MB</b> each, total <b>100MB</b>.
+                Up to <b id="limitCount">50</b> images, max <b id="perFileLimitText">6MB</b> each, total <b>100MB</b>.
               </p>
               <p id="sizeInfo" class="text-xs text-gray-500 mt-1">Total size: 0 MB</p>
             </div>
@@ -124,7 +126,7 @@
   </div>
 
   <script>
-    // Basic interactions used across pages (sidebar/theme)
+    // Base UI (sidebar + theme)
     (function baseUI(){
       document.querySelectorAll('[data-toggle="sidebar"]').forEach(btn=>{
         btn.addEventListener('click',()=>document.documentElement.classList.toggle('sidebar-open'));
@@ -135,16 +137,21 @@
       const stored = localStorage.getItem('theme'); if(stored) setTheme(stored);
     })();
 
-    // Add Gallery form logic
+    // Add Gallery (fetch upload to Node.js/Multer API)
     (function(){
       const MAX_IMAGES = 50;
-      const MAX_PER_FILE = 5 * 1024 * 1024;     // 5MB
+      const MAX_PER_FILE = 6 * 1024 * 1024;     // 6MB (server multer configured ~6MB)
       const MAX_TOTAL = 100 * 1024 * 1024;      // 100MB
 
       const form = document.getElementById('addGalleryForm');
+      // Updated to point at the Node.js endpoint (routes/galleryRoutes.js -> POST '/')
+      const API_URL = form.getAttribute('data-endpoint') || '/api/galleries';
+
       const title = document.getElementById('title');
       const desc = document.getElementById('description');
       const descCount = document.getElementById('descCount');
+      const isPublished = document.getElementById('isPublished');
+
       const input = document.getElementById('images');
       const preview = document.getElementById('preview');
       const dropzone = document.getElementById('dropzone');
@@ -153,10 +160,12 @@
       const clearBtn = document.getElementById('clearBtn');
       const coverIndexField = document.getElementById('coverIndex');
       const sizeInfo = document.getElementById('sizeInfo');
-      document.getElementById('limitCount').textContent = MAX_IMAGES;
+      const perFileLimitText = document.getElementById('perFileLimitText');
 
-      // Keep a working list so we can remove/reorder without losing File objects
-      let files = [];
+      document.getElementById('limitCount').textContent = MAX_IMAGES;
+      perFileLimitText.textContent = `${Math.round(MAX_PER_FILE / (1024*1024))}MB`;
+
+      let files = []; // working list
 
       const bytesToMB = (b) => Math.round((b / (1024*1024)) * 10) / 10;
 
@@ -167,8 +176,9 @@
             : 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900/40 dark:bg-emerald-900/20 dark:text-emerald-100');
         formAlert.textContent = msg;
         formAlert.classList.remove('hidden');
-        setTimeout(()=>formAlert.classList.add('hidden'), 3500);
       };
+
+      const hideAlert = () => formAlert.classList.add('hidden');
 
       const refreshSizeInfo = () => {
         const total = files.reduce((s,f)=>s+f.size,0);
@@ -197,7 +207,6 @@
           const img = document.createElement('img');
           img.src = url; img.alt = file.name; img.className = 'thumb w-full h-32';
 
-          // Top-right remove button
           const rm = document.createElement('button');
           rm.type = 'button';
           rm.className = 'absolute top-2 right-2 px-2 py-1 text-xs rounded-md bg-white/90 hover:bg-white dark:bg-gray-800/90';
@@ -209,7 +218,6 @@
             renderPreview(); refreshSizeInfo(); updateSubmitState();
           });
 
-          // Bottom bar: filename + "Set cover"
           const bar = document.createElement('div');
           bar.className = 'absolute inset-x-0 bottom-0 p-2 text-xs bg-gradient-to-t from-black/50 to-transparent text-white flex items-center justify-between';
           const name = document.createElement('span');
@@ -248,7 +256,7 @@
         for (const f of incoming) {
           if (!f.type.startsWith('image/')) continue;
           if (f.size > MAX_PER_FILE) {
-            showAlert(`"${f.name}" is larger than 5MB and was skipped.`, 'error');
+            showAlert(`"${f.name}" is larger than ${Math.round(MAX_PER_FILE/(1024*1024))}MB and was skipped.`, 'error');
             continue;
           }
           if (files.length >= MAX_IMAGES) break;
@@ -263,10 +271,10 @@
       input.addEventListener('change', (e) => addFiles(e.target.files));
 
       // Drag & drop
-      ;['dragenter','dragover'].forEach(evt=>{
+      ['dragenter','dragover'].forEach(evt=>{
         dropzone.addEventListener(evt, (e)=>{ e.preventDefault(); e.stopPropagation(); dropzone.classList.add('dropzone-active'); });
       });
-      ;['dragleave','drop'].forEach(evt=>{
+      ['dragleave','drop'].forEach(evt=>{
         dropzone.addEventListener(evt, (e)=>{ e.preventDefault(); e.stopPropagation(); dropzone.classList.remove('dropzone-active'); });
       });
       dropzone.addEventListener('drop', (e)=>{
@@ -283,6 +291,7 @@
 
       // Clear form
       clearBtn.addEventListener('click', ()=>{
+        hideAlert();
         files = [];
         input.value = '';
         title.value = '';
@@ -294,31 +303,64 @@
         updateSubmitState();
       });
 
-      // Submit
+      // Submit via fetch (stays on page)
       form.addEventListener('submit', async (e)=>{
+        e.preventDefault(); // prevent navigation
+        hideAlert();
+
         if (!validate()) {
-          e.preventDefault();
           showAlert('Please add a title and at least one valid image (size limits apply).', 'error');
           return;
         }
 
-        // If you use real XHR submission, uncomment below and prevent default
-        // e.preventDefault();
-        // const fd = new FormData();
-        // fd.append('title', title.value.trim());
-        // fd.append('description', desc.value.trim());
-        // fd.append('isPublished', document.getElementById('isPublished').checked ? 'true' : 'false');
-        // fd.append('coverIndex', coverIndexField.value);
-        // files.forEach((f)=> fd.append('images', f, f.name));
-        // const res = await fetch(form.action, { method: 'POST', body: fd });
-        // const json = await res.json();
-        // if (!res.ok) { showAlert(json?.message || 'Upload failed', 'error'); return; }
-        // showAlert('Gallery created successfully!', 'info');
-        // window.location.href = './';
+        const fd = new FormData();
+        fd.append('title', title.value.trim());
+        fd.append('description', desc.value.trim());
+        fd.append('isPublished', isPublished.checked ? 'true' : 'false');
+        fd.append('coverIndex', coverIndexField.value);
+        // Append images as images[] — Multer on server is configured to read this field name
+        files.forEach((f)=> fd.append('images[]', f, f.name));
 
+        submitBtn.disabled = true;
+        const originalText = submitBtn.textContent;
+        submitBtn.textContent = 'Saving...';
+
+        try {
+          const res = await fetch(API_URL, {
+            method: 'POST',
+            body: fd,
+            credentials: 'include' // useful if your Node.js app uses cookie-based auth
+          });
+
+          // Try to parse JSON (controller returns JSON)
+          const json = await res.json().catch(()=>null);
+
+          if (!res.ok) {
+            const msg = (json && (json.error || json.message)) ? (json.error || json.message) : `Upload failed (${res.status})`;
+            throw new Error(msg);
+          }
+
+          showAlert('Gallery created successfully!', 'info');
+
+          // Optional redirect to gallery list after success
+          setTimeout(()=> { window.location.href = './index.html'; }, 800);
+
+          // Optional: reset the form
+          files = [];
+          input.value = '';
+          renderPreview();
+          refreshSizeInfo();
+          updateSubmitState();
+        } catch (err) {
+          showAlert(err.message || 'Upload failed', 'error');
+        } finally {
+          submitBtn.disabled = false;
+          submitBtn.textContent = originalText;
+        }
       });
 
-      // Initial state
+      // Initial
+      refreshSizeInfo();
       updateSubmitState();
     })();
   </script>

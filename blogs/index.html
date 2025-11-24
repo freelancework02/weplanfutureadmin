@@ -6,6 +6,11 @@
   <title>Admin | Blogs</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="../assets/css/custom.css" />
+  <style>
+    #alert { max-width: 1100px; margin: 0 auto 12px; }
+    .action-btn { padding: 6px 8px; border-radius: 6px; }
+    .icon { font-size: 14px; line-height: 1; }
+  </style>
 </head>
 <body class="h-full bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100">
   <div id="backdrop" class="fixed inset-0 bg-black/40 opacity-0 pointer-events-none lg:hidden"></div>
@@ -45,12 +50,14 @@
       </div>
     </header>
 
-    <main class="p-6 space-y-6">
+    <main class="p-6 space-y-6" data-api-base="http://127.0.0.1:3000/api">
+      <!-- small alert -->
+      <div id="alert" class="hidden rounded-lg border p-3 text-sm"></div>
+
       <!-- Toolbar -->
       <div class="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
-        <input type="text" placeholder="Search posts…" class="w-full sm:w-80 px-3 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-amber-500 dark:bg-gray-800 dark:border-gray-700"
-               data-table-filter="#blogs-table" />
-        <div class="text-sm text-gray-500">Showing <b>15</b> posts</div>
+        <input id="search" type="text" placeholder="Search posts…" class="w-full sm:w-80 px-3 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-amber-500 dark:bg-gray-800 dark:border-gray-700" />
+        <div class="text-sm text-gray-500">Showing <b id="totalCount">0</b> posts</div>
       </div>
 
       <div class="overflow-x-auto rounded-xl border border-gray-200 bg-white dark:bg-gray-800 dark:border-gray-700">
@@ -64,41 +71,210 @@
               <th class="px-4 py-3 text-right font-medium">Actions</th>
             </tr>
           </thead>
-          <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
-            <tr>
-              <td class="px-4 py-3">Release Notes – November</td>
-              <td class="px-4 py-3">Admin</td>
-              <td class="px-4 py-3">11 Nov 2025</td>
-              <td class="px-4 py-3"><span class="px-2 py-1 rounded-full text-xs bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">Published</span></td>
-              <td class="px-4 py-3">
-                <div class="flex items-center gap-1 justify-end">
-                  <button class="px-2 py-1 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700" data-action="view" data-id="201">View</button>
-                  <button class="px-2 py-1 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700" data-action="edit" data-id="201">Edit</button>
-                  <button class="px-2 py-1 rounded-md text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20" data-action="delete" data-id="201">Delete</button>
-                </div>
-              </td>
-            </tr>
-
-            <tr>
-              <td class="px-4 py-3">Writing Accessible UI Copy</td>
-              <td class="px-4 py-3">Team</td>
-              <td class="px-4 py-3">08 Nov 2025</td>
-              <td class="px-4 py-3"><span class="px-2 py-1 rounded-full text-xs bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">Draft</span></td>
-              <td class="px-4 py-3">
-                <div class="flex items-center gap-1 justify-end">
-                  <button class="px-2 py-1 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700" data-action="view" data-id="202">View</button>
-                  <button class="px-2 py-1 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700" data-action="edit" data-id="202">Edit</button>
-                  <button class="px-2 py-1 rounded-md text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20" data-action="delete" data-id="202">Delete</button>
-                </div>
-              </td>
-            </tr>
-            <!-- more rows... -->
+          <tbody id="tbody" class="divide-y divide-gray-200 dark:divide-gray-700">
+            <!-- injected -->
           </tbody>
         </table>
+
+        <div id="empty" class="hidden p-10 text-center text-gray-500 dark:text-gray-400">
+          No posts yet. Click <b>+ New Post</b> to create one.
+        </div>
       </div>
     </main>
   </div>
 
-  <script src="../assets/js/app.js"></script>
+  <script>
+    (function baseUI(){
+      document.querySelectorAll('[data-toggle="sidebar"]').forEach(btn=>{
+        btn.addEventListener('click',()=>document.documentElement.classList.toggle('sidebar-open'));
+      });
+      const themeBtn = document.querySelector('[data-toggle="theme"]');
+      const setTheme = t => { document.documentElement.classList.toggle('dark', t==='dark'); localStorage.setItem('theme', t); };
+      if (themeBtn) themeBtn.addEventListener('click',()=>setTheme(document.documentElement.classList.contains('dark')?'light':'dark'));
+      const stored = localStorage.getItem('theme'); if (stored) setTheme(stored);
+    })();
+
+    (function blogsList(){
+      const apiBase = document.querySelector('main').getAttribute('data-api-base') || '/api';
+      const LIST_URL = `${apiBase}/blogs?page=1&per=200`;   // backend should accept pagination
+      const DELETE_URL = id => `${apiBase}/blogs/${encodeURIComponent(id)}`;
+
+      const tbody = document.getElementById('tbody');
+      const empty = document.getElementById('empty');
+      const totalCount = document.getElementById('totalCount');
+      const search = document.getElementById('search');
+      const alertBox = document.getElementById('alert');
+
+      let items = [];
+      let filtered = [];
+
+      const showAlert = (msg, type='info', ttl=2500) => {
+        alertBox.className = 'rounded-lg border p-3 text-sm mx-auto ' + (
+          type === 'error'
+            ? 'border-red-200 bg-red-50 text-red-800 dark:border-red-900/40 dark:bg-red-900/20 dark:text-red-100'
+            : 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900/40 dark:bg-emerald-900/20 dark:text-emerald-100'
+        );
+        alertBox.textContent = msg;
+        alertBox.classList.remove('hidden');
+        if (ttl) setTimeout(()=> alertBox.classList.add('hidden'), ttl);
+      };
+
+      const timeFmt = (iso) => {
+        if (!iso) return '—';
+        try { return new Date(String(iso).replace(' ', 'T')).toLocaleDateString(); } catch(e) { return iso; }
+      };
+
+      const render = () => {
+        tbody.innerHTML = '';
+        if (!filtered.length) {
+          empty.classList.remove('hidden');
+          totalCount.textContent = '0';
+          return;
+        }
+        empty.classList.add('hidden');
+        totalCount.textContent = String(filtered.length);
+
+        for (const b of filtered) {
+          const tr = document.createElement('tr');
+
+          // Title
+          const titleTd = document.createElement('td');
+          titleTd.className = 'px-4 py-3';
+          const titleDiv = document.createElement('div');
+          titleDiv.className = 'font-medium';
+          titleDiv.textContent = b.title || `Post ${b.id}`;
+          const excerpt = document.createElement('div');
+          excerpt.className = 'text-xs text-gray-500';
+          excerpt.textContent = (b.excerpt ?? b.description ?? '').slice(0, 120);
+          titleTd.appendChild(titleDiv); titleTd.appendChild(excerpt);
+
+          // Author
+          const authorTd = document.createElement('td');
+          authorTd.className = 'px-4 py-3';
+          authorTd.textContent = b.author || (b.createdBy || 'Admin');
+
+          // Published / date
+          const pubTd = document.createElement('td');
+          pubTd.className = 'px-4 py-3';
+          pubTd.textContent = timeFmt(b.publishedAt ?? b.created_at ?? b.createdAt);
+
+          // Status
+          const statusTd = document.createElement('td');
+          statusTd.className = 'px-4 py-3';
+          const status = (b.is_published ?? b.isPublished) ? 'Published' : 'Draft';
+          const span = document.createElement('span');
+          span.className = `px-2 py-1 rounded-full text-xs ${status === 'Published' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300' : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'}`;
+          span.textContent = status;
+          statusTd.appendChild(span);
+
+          // Actions
+          const actionsTd = document.createElement('td');
+          actionsTd.className = 'px-4 py-3';
+          const wrap = document.createElement('div');
+          wrap.className = 'flex items-center gap-1 justify-end';
+
+          // View button -> navigates to view.html?id=...
+          const viewBtn = document.createElement('button');
+          viewBtn.className = 'action-btn bg-gray-50 hover:bg-gray-100 dark:bg-gray-800 dark:hover:bg-gray-700';
+          viewBtn.title = 'View';
+          viewBtn.innerHTML = '<span class="icon">View</span>';
+          viewBtn.addEventListener('click', ()=> {
+            window.location.href = `./view.html?id=${encodeURIComponent(b.id)}`;
+          });
+
+          // Edit button -> navigates to edit.html?id=...
+          const editBtn = document.createElement('button');
+          editBtn.className = 'action-btn bg-gray-50 hover:bg-gray-100 dark:bg-gray-800 dark:hover:bg-gray-700';
+          editBtn.title = 'Edit';
+          editBtn.innerHTML = '<span class="icon">Edit</span>';
+          editBtn.addEventListener('click', ()=> {
+            window.location.href = `./edit.html?id=${encodeURIComponent(b.id)}`;
+          });
+
+          // Delete button -> calls DELETE
+          const delBtn = document.createElement('button');
+          delBtn.className = 'action-btn text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20';
+          delBtn.title = 'Delete';
+          delBtn.innerHTML = '<span class="icon">Delete</span>';
+          delBtn.addEventListener('click', async () => {
+            const ok = confirm(`Delete post "${b.title}"? This cannot be undone.`);
+            if (!ok) return;
+            try {
+              const res = await fetch(DELETE_URL(b.id), { method: 'DELETE', credentials: 'include' });
+              const json = await res.json().catch(()=>null);
+              if (!res.ok) throw new Error((json && (json.error||json.message)) || `Delete failed (${res.status})`);
+              // remove from items & re-render
+              items = items.filter(x => Number(x.id) !== Number(b.id));
+              filtered = filtered.filter(x => Number(x.id) !== Number(b.id));
+              render();
+              showAlert('Post deleted', 'info');
+            } catch (err) {
+              console.error('Delete error', err);
+              showAlert(err.message || 'Delete failed', 'error');
+            }
+          });
+
+          wrap.appendChild(viewBtn);
+          wrap.appendChild(editBtn);
+          wrap.appendChild(delBtn);
+          actionsTd.appendChild(wrap);
+
+          tr.appendChild(titleTd);
+          tr.appendChild(authorTd);
+          tr.appendChild(pubTd);
+          tr.appendChild(statusTd);
+          tr.appendChild(actionsTd);
+          tbody.appendChild(tr);
+        }
+      };
+
+      const load = async () => {
+        try {
+          showAlert('Loading posts...', 'info', 900);
+          const res = await fetch(LIST_URL, { credentials: 'include' });
+          const json = await res.json().catch(()=>null);
+          if (!res.ok) {
+            throw new Error((json && (json.error||json.message)) || `Failed to load (${res.status})`);
+          }
+
+          // accept shapes: { data: [...] }, { items: [...] }, or array
+          const rows = Array.isArray(json.data) ? json.data : (Array.isArray(json.items) ? json.items : (Array.isArray(json) ? json : []));
+          items = rows.map(r => ({
+            id: r.id,
+            title: r.title,
+            description: r.description || r.excerpt || '',
+            excerpt: r.excerpt || '',
+            author: r.author || r.createdBy || 'Admin',
+            created_at: r.created_at,
+            createdAt: r.createdAt,
+            publishedAt: r.published_at || r.publishedAt || null,
+            is_published: r.is_published ?? r.isPublished ?? false,
+            images_count: r.images_count ?? r.imagesCount ?? 0
+          }));
+          filtered = [...items];
+          render();
+          showAlert(`Loaded ${items.length} posts.`, 'info', 1200);
+        } catch (err) {
+          console.error('Load error', err);
+          items = [];
+          filtered = [];
+          render();
+          showAlert(err.message || 'Failed to load posts', 'error', 4000);
+        }
+      };
+
+      search.addEventListener('input', ()=> {
+        const q = search.value.trim().toLowerCase();
+        filtered = !q ? [...items] : items.filter(b =>
+          String(b.title || '').toLowerCase().includes(q) ||
+          String(b.description || '').toLowerCase().includes(q)
+        );
+        render();
+      });
+
+      // initial
+      load();
+    })();
+  </script>
 </body>
 </html>

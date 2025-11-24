@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Admin | View Gallery</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="../assets/css/custom.css" />
+  <style>
+    .grid-auto-fit { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+    .img-thumb { aspect-ratio: 4 / 3; object-fit: cover; }
+    .fade-in { animation: fade .25s ease-out both; }
+    @keyframes fade { from { opacity: 0; transform: translateY(6px);} to { opacity: 1; transform: none; } }
+  </style>
+</head>
+<body class="h-full bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100">
+  <!-- Backdrop -->
+  <div id="backdrop" class="fixed inset-0 bg-black/40 opacity-0 pointer-events-none lg:hidden"></div>
+
+  <!-- Sidebar -->
+  <aside id="sidebar" class="fixed top-0 left-0 z-40 h-full w-72 bg-white border-r border-gray-200 dark:bg-gray-800 dark:border-gray-700">
+    <div class="flex items-center gap-3 px-5 h-16 border-b border-gray-200 dark:border-gray-700">
+      <div class="size-9 rounded-lg bg-emerald-600"></div>
+      <div class="font-semibold">Admin Panel</div>
+    </div>
+    <nav class="p-3">
+      <a href="../index.html" class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">
+        <span>🏠</span><span>Dashboard</span>
+      </a>
+      <a href="./" class="flex items-center gap-3 px-3 py-2 rounded-lg mt-1 hover:bg-gray-100 dark:hover:bg-gray-700">
+        <span>🖼️</span><span>Gallery</span>
+      </a>
+      <a href="../blogs/" class="flex items-center gap-3 px-3 py-2 rounded-lg mt-1 hover:bg-gray-100 dark:hover:bg-gray-700">
+        <span>📝</span><span>Blogs</span>
+      </a>
+    </nav>
+  </aside>
+
+  <!-- Main -->
+  <div class="lg:pl-72 min-h-full">
+    <!-- Topbar -->
+    <header class="sticky top-0 z-30 bg-white/80 backdrop-blur border-b border-gray-200 dark:bg-gray-800/80 dark:border-gray-700">
+      <div class="h-16 px-4 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <button class="lg:hidden p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700" data-toggle="sidebar">☰</button>
+          <h1 class="text-lg font-semibold">View Gallery</h1>
+        </div>
+        <div class="flex items-center gap-2">
+          <button class="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700" data-toggle="theme">🌓</button>
+          <a id="editLink" href="./edit.html" class="px-3 py-1.5 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700">Edit</a>
+          <a href="./" class="px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700">Back</a>
+        </div>
+      </div>
+    </header>
+
+    <!-- Content -->
+    <main class="p-6 space-y-6" data-api-base="http://127.0.0.1:3000/api">
+      <!-- Alerts -->
+      <div id="alert" class="hidden rounded-lg border p-3 text-sm"></div>
+
+      <!-- Hero / meta -->
+      <section class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-4 md:p-6 shadow-sm">
+        <div class="flex flex-col md:flex-row gap-6">
+          <div class="md:w-72 shrink-0">
+            <img id="cover" class="w-full h-44 object-cover rounded-xl ring-1 ring-black/5 bg-gray-100 dark:bg-gray-900"
+                 src="https://placehold.co/600x400?text=Cover" alt="Cover" />
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-start gap-3">
+              <h2 id="title" class="text-2xl font-bold truncate">—</h2>
+              <span id="publishedBadge" class="mt-1 inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-200">Draft</span>
+            </div>
+            <p id="description" class="mt-2 text-gray-600 dark:text-gray-300 whitespace-pre-line">—</p>
+
+            <div class="mt-4 grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+              <div class="p-3 rounded-lg bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700">
+                <div class="text-gray-500">Photos</div>
+                <div id="photoCount" class="font-semibold">—</div>
+              </div>
+              <div class="p-3 rounded-lg bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700">
+                <div class="text-gray-500">Created</div>
+                <div id="createdAt" class="font-semibold">—</div>
+              </div>
+              <div class="p-3 rounded-lg bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700">
+                <div class="text-gray-500">Updated</div>
+                <div id="updatedAt" class="font-semibold">—</div>
+              </div>
+              <div class="p-3 rounded-lg bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700">
+                <div class="text-gray-500">Gallery ID</div>
+                <div id="galleryId" class="font-semibold">—</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Photos grid -->
+      <section class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-4 md:p-6 shadow-sm">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="text-lg font-semibold">Photos</h3>
+          <div class="text-sm text-gray-500"><span id="countLabel">0</span> total</div>
+        </div>
+        <div id="grid" class="grid grid-auto-fit gap-4">
+          <!-- thumbs here -->
+        </div>
+
+        <!-- Empty state -->
+        <div id="empty" class="hidden text-center text-gray-500 dark:text-gray-400 py-8">
+          No images in this album yet.
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Lightbox -->
+  <div id="lightbox" class="fixed inset-0 bg-black/90 hidden z-50">
+    <button id="lbClose" class="absolute top-4 right-4 px-3 py-1.5 rounded-md bg-white/10 text-white hover:bg-white/20">✕</button>
+    <button id="lbPrev" class="absolute left-3 top-1/2 -translate-y-1/2 px-3 py-1.5 rounded-md bg-white/10 text-white hover:bg-white/20">←</button>
+    <button id="lbNext" class="absolute right-3 top-1/2 -translate-y-1/2 px-3 py-1.5 rounded-md bg-white/10 text-white hover:bg-white/20">→</button>
+    <div class="w-full h-full flex items-center justify-center p-4">
+      <img id="lbImg" class="max-w-[96vw] max-h-[85vh] object-contain rounded-lg shadow-2xl" alt="Preview" />
+    </div>
+  </div>
+
+  <script>
+    // Base UI
+    (function baseUI(){
+      document.querySelectorAll('[data-toggle="sidebar"]').forEach(btn=>{
+        btn.addEventListener('click',()=>document.documentElement.classList.toggle('sidebar-open'));
+      });
+      const themeBtn = document.querySelector('[data-toggle="theme"]');
+      const setTheme = t => { document.documentElement.classList.toggle('dark', t==='dark'); localStorage.setItem('theme', t); };
+      if(themeBtn) themeBtn.addEventListener('click',()=>setTheme(document.documentElement.classList.contains('dark')?'light':'dark'));
+      const stored = localStorage.getItem('theme'); if(stored) setTheme(stored);
+    })();
+
+    // View logic
+    (function(){
+      const apiBase = document.querySelector('main').getAttribute('data-api-base') || '/api';
+      const params = new URLSearchParams(location.search);
+      const id = params.get('id');
+      const VIEW_URL = `${apiBase}/galleries/${encodeURIComponent(id)}`;         // GET /api/galleries/:id
+      const IMG_URL = imgId => `${apiBase}/galleries/image/${encodeURIComponent(imgId)}/blob`; // GET image blob
+
+      const alertBox = document.getElementById('alert');
+      const showAlert = (msg, type='info') => {
+        alertBox.className = 'rounded-lg border p-3 text-sm ' + (
+          type==='error' ? 'border-red-200 bg-red-50 text-red-800 dark:border-red-900/40 dark:bg-red-900/20 dark:text-red-100'
+                         : 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900/40 dark:bg-emerald-900/20 dark:text-emerald-100'
+        );
+        alertBox.textContent = msg;
+        alertBox.classList.remove('hidden');
+        setTimeout(()=>alertBox.classList.add('hidden'), 2200);
+      };
+
+      const titleEl = document.getElementById('title');
+      const descEl  = document.getElementById('description');
+      const coverEl = document.getElementById('cover');
+      const pubBadge= document.getElementById('publishedBadge');
+      const countEl = document.getElementById('photoCount');
+      const createdEl=document.getElementById('createdAt');
+      const updatedEl=document.getElementById('updatedAt');
+      const idEl    = document.getElementById('galleryId');
+      const grid    = document.getElementById('grid');
+      const empty   = document.getElementById('empty');
+      const countLbl= document.getElementById('countLabel');
+      const editLink= document.getElementById('editLink');
+
+      const lb      = document.getElementById('lightbox');
+      const lbImg   = document.getElementById('lbImg');
+      const lbPrev  = document.getElementById('lbPrev');
+      const lbNext  = document.getElementById('lbNext');
+      const lbClose = document.getElementById('lbClose');
+
+      let images = [];
+      let current = 0;
+
+      const fmt = s => s ? new Date(String(s).replace(' ', 'T')).toLocaleString() : '—';
+
+      const openLB = (idx) => {
+        if (!images.length) return;
+        current = Math.max(0, Math.min(idx, images.length - 1));
+        lbImg.src = images[current].url;
+        lb.classList.remove('hidden');
+      };
+      const closeLB = () => lb.classList.add('hidden');
+      const prevLB = () => openLB((current - 1 + images.length) % images.length);
+      const nextLB = () => openLB((current + 1) % images.length);
+
+      lbPrev.addEventListener('click', prevLB);
+      lbNext.addEventListener('click', nextLB);
+      lbClose.addEventListener('click', closeLB);
+      lb.addEventListener('click', (e)=>{ if(e.target === lb) closeLB(); });
+      window.addEventListener('keydown', (e)=>{
+        if (lb.classList.contains('hidden')) return;
+        if (e.key === 'Escape') closeLB();
+        if (e.key === 'ArrowLeft') prevLB();
+        if (e.key === 'ArrowRight') nextLB();
+      });
+
+      async function load() {
+        if (!id) { showAlert('Missing gallery id', 'error'); return; }
+        editLink.href = `./edit.html?id=${encodeURIComponent(id)}`;
+
+        try {
+          const res = await fetch(VIEW_URL, { credentials: 'include' });
+          const json = await res.json().catch(()=>null);
+          if (!res.ok) throw new Error((json && (json.error||json.message)) ? (json.error||json.message) : `HTTP ${res.status}`);
+
+          const g = json.gallery || json.data || json || {};
+          const imgs = Array.isArray(json.images) ? json.images : (Array.isArray(g.images) ? g.images : []);
+
+          titleEl.textContent = g.title || `Gallery ${id}`;
+          descEl.textContent = g.description || '';
+          pubBadge.textContent = (g.is_published || g.isPublished) ? 'Published' : 'Draft';
+          pubBadge.className = 'mt-1 inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded-full ' +
+            ((g.is_published || g.isPublished) ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-200' : 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-200');
+
+          const coverId = g.cover_image_id ?? g.coverImageId ?? null;
+          coverEl.src = coverId ? IMG_URL(coverId) : 'https://placehold.co/600x400?text=Cover';
+
+          countEl.textContent = imgs.length;
+          createdEl.textContent = fmt(g.created_at ?? g.createdAt);
+          updatedEl.textContent = fmt(g.updated_at ?? g.updatedAt);
+          idEl.textContent = g.id || id;
+
+          images = imgs.map(im => ({
+            id: Number(im.id),
+            url: IMG_URL(im.id),
+            name: im.image_name || im.filename || ''
+          }));
+          countLbl.textContent = images.length;
+
+          grid.innerHTML = '';
+          if (!images.length) {
+            empty.classList.remove('hidden');
+          } else {
+            empty.classList.add('hidden');
+            images.forEach((im, idx) => {
+              const cell = document.createElement('button');
+              cell.className = 'rounded-lg overflow-hidden ring-1 ring-black/5 bg-gray-50 dark:bg-gray-900 fade-in';
+              cell.title = im.name || `Photo ${idx+1}`;
+              cell.addEventListener('click', () => openLB(idx));
+
+              const img = document.createElement('img');
+              img.src = im.url;
+              img.alt = im.name || '';
+              img.loading = 'lazy';
+              img.className = 'w-full img-thumb';
+              cell.appendChild(img);
+
+              grid.appendChild(cell);
+            });
+          }
+        } catch (err) {
+          console.error(err);
+          showAlert(err.message || 'Failed to load gallery', 'error');
+        }
+      }
+
+      load();
+    })();
+  </script>
+</body>
+</html>

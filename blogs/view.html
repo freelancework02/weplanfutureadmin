@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Admin | View Blog</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="../assets/css/custom.css" />
+  <style>
+    /* small UI improvements */
+    .img-thumb { aspect-ratio: 16/9; object-fit: cover; border-radius: .5rem; }
+    .grid-auto-fit { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+    .lightbox { background: rgba(0,0,0,.92); }
+    #alert { max-width: 1000px; margin: 0 auto; }
+    .prose { line-height: 1.6; }
+    .meta { color: #6b7280; font-size: .9rem; }
+  </style>
+</head>
+<body class="h-full bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100">
+  <div id="backdrop" class="fixed inset-0 bg-black/40 opacity-0 pointer-events-none lg:hidden"></div>
+
+  <!-- Sidebar -->
+  <aside id="sidebar" class="fixed top-0 left-0 z-40 h-full w-72 bg-white border-r border-gray-200 dark:bg-gray-800 dark:border-gray-700">
+    <div class="flex items-center gap-3 px-5 h-16 border-b border-gray-200 dark:border-gray-700">
+      <div class="size-9 rounded-lg bg-emerald-600"></div>
+      <div class="font-semibold">Admin Panel</div>
+    </div>
+    <nav class="p-3">
+      <a href="../index.html" class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">🏠 Dashboard</a>
+      <a href="./" class="flex items-center gap-3 px-3 py-2 rounded-lg mt-1 hover:bg-gray-100 dark:hover:bg-gray-700">📝 Blogs</a>
+      <a href="../gallery/" class="flex items-center gap-3 px-3 py-2 rounded-lg mt-1 hover:bg-gray-100 dark:hover:bg-gray-700">🖼️ Gallery</a>
+    </nav>
+  </aside>
+
+  <div class="lg:pl-72 min-h-full">
+    <header class="sticky top-0 z-30 bg-white/80 backdrop-blur border-b border-gray-200 dark:bg-gray-800/80 dark:border-gray-700">
+      <div class="h-16 px-4 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <button class="lg:hidden p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700" data-toggle="sidebar">☰</button>
+          <h1 class="text-lg font-semibold">View Blog</h1>
+        </div>
+        <div class="flex items-center gap-2">
+          <button id="themeToggle" class="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700">🌓</button>
+          <a id="editLink" class="px-3 py-1.5 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700" href="#">Edit</a>
+          <a href="./" class="px-3 py-1.5 rounded-lg border border-gray-300 hover:bg-gray-100">Back</a>
+        </div>
+      </div>
+    </header>
+
+    <main class="p-6" data-api-base="http://127.0.0.1:3000/api">
+      <div id="alert" class="hidden rounded-lg border p-3 text-sm"></div>
+
+      <section class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-4 md:p-6 shadow-sm">
+        <div class="flex flex-col md:flex-row gap-6">
+          <div class="md:w-72 shrink-0">
+            <img id="cover" class="w-full h-44 object-cover rounded-xl ring-1 ring-black/5 bg-gray-100" src="https://placehold.co/600x400?text=Cover" alt="Cover" />
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-start gap-3">
+              <h2 id="title" class="text-2xl font-bold truncate">—</h2>
+              <span id="publishedBadge" class="mt-1 inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded-full bg-amber-100 text-amber-800">Draft</span>
+            </div>
+            <div id="meta" class="mt-2 meta">—</div>
+            <div id="content" class="mt-4 prose dark:prose-invert max-w-none"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-4 md:p-6 shadow-sm mt-6">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="text-lg font-semibold">Images</h3>
+          <div class="text-sm text-gray-500"><span id="countLabel">0</span> total</div>
+        </div>
+        <div id="grid" class="grid gap-4 grid-auto-fit" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr));"></div>
+        <div id="empty" class="hidden text-center text-gray-500 py-8">No images in this post.</div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Lightbox -->
+  <div id="lightbox" class="fixed inset-0 lightbox hidden z-50">
+    <button id="lbClose" class="absolute top-4 right-4 px-3 py-1.5 rounded-md bg-white/10 text-white hover:bg-white/20">✕</button>
+    <div class="w-full h-full flex items-center justify-center p-4">
+      <img id="lbImg" class="max-w-[96vw] max-h-[85vh] object-contain rounded-lg shadow-2xl" alt="Preview" />
+    </div>
+  </div>
+
+  <script>
+    // base UI toggles
+    (function baseUI(){
+      document.querySelectorAll('[data-toggle="sidebar"]').forEach(btn=> btn.addEventListener('click', ()=>document.documentElement.classList.toggle('sidebar-open')));
+      const themeToggle = document.getElementById('themeToggle');
+      themeToggle?.addEventListener('click', ()=> {
+        const now = document.documentElement.classList.toggle('dark');
+        localStorage.setItem('theme', now ? 'dark' : 'light');
+      });
+      const stored = localStorage.getItem('theme'); if (stored) document.documentElement.classList.toggle('dark', stored === 'dark');
+    })();
+
+    (function viewBlog(){
+      const apiBase = document.querySelector('main').getAttribute('data-api-base') || '/api';
+      const params = new URLSearchParams(location.search);
+      const id = params.get('id');
+      if (!id) {
+        alert('Missing blog id in query string (use ?id=...)');
+        return;
+      }
+
+      const GET_URL = `${apiBase}/blogs/${encodeURIComponent(id)}`;
+      const IMG_URL = imgId => `${apiBase}/blogs/image/${encodeURIComponent(imgId)}/blob`;
+
+      const alertBox = document.getElementById('alert');
+      const showAlert = (msg, type='info') => {
+        alertBox.className = 'rounded-lg border p-3 text-sm ' + (type==='error' ? 'border-red-200 bg-red-50 text-red-800' : 'border-emerald-200 bg-emerald-50 text-emerald-800');
+        alertBox.textContent = msg; alertBox.classList.remove('hidden'); setTimeout(()=>alertBox.classList.add('hidden'), 3200);
+      };
+
+      const titleEl = document.getElementById('title');
+      const coverEl = document.getElementById('cover');
+      const badge = document.getElementById('publishedBadge');
+      const metaEl = document.getElementById('meta');
+      const contentEl = document.getElementById('content');
+      const grid = document.getElementById('grid');
+      const empty = document.getElementById('empty');
+      const countLabel = document.getElementById('countLabel');
+      const editLink = document.getElementById('editLink');
+
+      const lb = document.getElementById('lightbox');
+      const lbImg = document.getElementById('lbImg');
+      const lbClose = document.getElementById('lbClose');
+      lbClose.addEventListener('click', ()=> lb.classList.add('hidden'));
+      lb.addEventListener('click', (e)=> { if (e.target === lb) lb.classList.add('hidden'); });
+
+      // Accept several response shapes: { blog, images }, { data, images }, or { ... } top-level
+      function normalizeGetResponse(json) {
+        if (!json) return { blog: {}, images: [] };
+        if (json.blog || json.images) return { blog: json.blog || json.data || {}, images: json.images || [] };
+        // maybe server returned { data: {...}, images: [...] }
+        if (json.data && (json.data.title || json.data.content_html)) return { blog: json.data, images: json.images || [] };
+        // fallback: top-level fields (assume blog) and check for images array
+        return { blog: json, images: Array.isArray(json.images) ? json.images : [] };
+      }
+
+      function fmtDate(s) {
+        if (!s) return '—';
+        // accept "YYYY-MM-DD hh:mm:ss" too
+        const d = new Date(String(s).replace(' ', 'T'));
+        if (isNaN(d)) return s;
+        return d.toLocaleString();
+      }
+
+      async function load() {
+        try {
+          const res = await fetch(GET_URL, { credentials: 'include' });
+          const json = await res.json().catch(()=>null);
+          if (!res.ok) {
+            console.error('GET non-ok:', res.status, json);
+            throw new Error((json && (json.error || json.message)) || `HTTP ${res.status}`);
+          }
+          const { blog, images } = normalizeGetResponse(json);
+
+          titleEl.textContent = blog.title || `Post ${id}`;
+          // content: insert HTML if available
+          contentEl.innerHTML = blog.content_html ?? blog.content ?? '';
+          const published = !!(blog.is_published ?? blog.isPublished);
+          badge.textContent = published ? 'Published' : 'Draft';
+          badge.className = 'mt-1 inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded-full ' + (published ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800');
+
+          metaEl.textContent = `Created: ${fmtDate(blog.created_at ?? blog.createdAt)}  •  Updated: ${fmtDate(blog.updated_at ?? blog.updatedAt)}`;
+
+          const coverId = blog.cover_image_id ?? blog.coverImageId ?? (images[0] && images[0].id) ?? null;
+          coverEl.src = coverId ? IMG_URL(coverId) : (images[0] ? IMG_URL(images[0].id) : 'https://placehold.co/600x400?text=Cover');
+
+          countLabel.textContent = images.length;
+          grid.innerHTML = '';
+          if (!images || images.length === 0) {
+            empty.classList.remove('hidden');
+          } else {
+            empty.classList.add('hidden');
+            images.forEach(im => {
+              const btn = document.createElement('button');
+              btn.className = 'rounded-lg overflow-hidden ring-1 ring-black/5 bg-gray-50 dark:bg-gray-900';
+              btn.addEventListener('click', ()=> { lbImg.src = IMG_URL(im.id); lb.classList.remove('hidden'); });
+
+              const img = document.createElement('img');
+              img.className = 'img-thumb w-full';
+              img.src = IMG_URL(im.id);
+              img.alt = im.image_name || im.filename || `img-${im.id}`;
+              img.loading = 'lazy';
+              btn.appendChild(img);
+              grid.appendChild(btn);
+            });
+          }
+
+          editLink.href = `./edit.html?id=${encodeURIComponent(id)}`;
+        } catch (err) {
+          console.error('load error:', err);
+          showAlert(err.message || 'Failed to load blog', 'error');
+        }
+      }
+
+      load();
+    })();
+  </script>
+</body>
+</html>
