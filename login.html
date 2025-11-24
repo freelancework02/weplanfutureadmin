@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Admin | Access</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="./assets/css/custom.css" />
+  <style>
+    .auth-tab { border-radius: 999px; padding: .4rem 1rem; font-weight: 500; }
+    .auth-tab.active { background: rgb(16 185 129); color: #fff; box-shadow: 0 2px 6px rgba(16,185,129,.35); }
+    .auth-tab:not(.active) { color: rgb(75 85 99); }
+    html.dark .auth-tab:not(.active) { color: rgb(209 213 219); }
+    .gradient-bg {
+      background: radial-gradient(circle at top, rgba(16,185,129,.25), transparent 55%),
+                  radial-gradient(circle at bottom, rgba(59,130,246,.2), transparent 45%),
+                  #020617;
+    }
+  </style>
+</head>
+<body class="h-full gradient-bg text-gray-900 dark:text-gray-100">
+  <div class="min-h-screen flex flex-col lg:flex-row">
+    <section class="flex-1 flex flex-col justify-between px-8 py-10 text-white">
+      <div>
+        <div class="inline-flex items-center gap-3 px-4 py-2 rounded-full border border-white/20 mb-6">
+          <span class="text-emerald-300 text-sm">We Plan Future</span>
+          <span class="text-xs text-white/70">Admin Portal</span>
+        </div>
+        <h1 class="text-4xl lg:text-5xl font-semibold leading-tight max-w-xl">Plan, publish, and manage every experience from one dashboard.</h1>
+        <p class="mt-6 text-lg text-white/70 max-w-2xl">
+          Sign in to access events, gallery, blogs, and everything else you manage.
+          Need an account? Use the same screen to create one securely.
+        </p>
+      </div>
+      <div class="mt-10 space-y-3 text-white/60 text-sm">
+        <p>Single sign-on protects dashboards, APIs, and uploads.</p>
+        <p>Forgot your password? Contact the platform admin to reset your credentials.</p>
+      </div>
+    </section>
+
+    <section class="flex-1 min-h-full bg-white/90 dark:bg-gray-900/90 backdrop-blur">
+      <div class="max-w-md mx-auto px-6 py-12">
+        <div class="flex items-center justify-between">
+          <h2 class="text-2xl font-semibold">Welcome back</h2>
+          <button id="themeToggle" class="p-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800" aria-label="Toggle theme">🌓</button>
+        </div>
+        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Sign in or create an account to continue.</p>
+
+        <div class="mt-6 bg-gray-100 dark:bg-gray-800 rounded-2xl p-1 flex">
+          <button type="button" class="auth-tab active flex-1 text-center" data-auth-tab="signin">Sign in</button>
+          <button type="button" class="auth-tab flex-1 text-center" data-auth-tab="signup">Create account</button>
+        </div>
+
+        <form id="authForm" class="mt-8 space-y-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-6 shadow-lg">
+          <input type="hidden" id="mode" value="signin" />
+
+          <div data-field="name" class="space-y-1 hidden">
+            <label class="block text-sm font-medium">Full name</label>
+            <input id="fullName" type="text" class="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2" placeholder="Jane Doe" autocomplete="name" />
+          </div>
+
+          <div class="space-y-1">
+            <label class="block text-sm font-medium">Email</label>
+            <input id="email" type="email" required class="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2" placeholder="you@company.com" autocomplete="email" />
+          </div>
+
+          <div class="space-y-1">
+            <label class="block text-sm font-medium">Password</label>
+            <input id="password" type="password" required class="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2" placeholder="••••••••" autocomplete="current-password" />
+          </div>
+
+          <div data-field="confirm" class="space-y-1 hidden">
+            <label class="block text-sm font-medium">Confirm password</label>
+            <input id="confirmPassword" type="password" class="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2" placeholder="Repeat password" autocomplete="new-password" />
+          </div>
+
+          <div class="flex items-center justify-between text-sm">
+            <label class="inline-flex items-center gap-2">
+              <input id="rememberMe" type="checkbox" class="size-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500" />
+              <span>Remember this device</span>
+            </label>
+            <a href="#" class="text-emerald-600 hover:text-emerald-500">Need help?</a>
+          </div>
+
+          <button type="submit" id="submitBtn" class="w-full px-4 py-3 rounded-xl bg-emerald-600 text-white font-semibold hover:bg-emerald-700">Continue</button>
+
+          <div id="formAlert" class="hidden text-sm px-3 py-2 rounded-lg"></div>
+        </form>
+
+        <p class="mt-6 text-xs text-gray-400">
+          By continuing you agree to our internal access policy. Activity is monitored and audited.
+        </p>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    (function(){
+      const AUTH_BASE = 'https://weplanfuture.com/api/auth';
+      const ENDPOINTS = {
+        signin: AUTH_BASE + '/login',
+        signup: AUTH_BASE + '/register'
+      };
+
+      const form = document.getElementById('authForm');
+      const modeInput = document.getElementById('mode');
+      const tabs = document.querySelectorAll('[data-auth-tab]');
+      const fullNameWrap = document.querySelector('[data-field="name"]');
+      const confirmWrap = document.querySelector('[data-field="confirm"]');
+      const fullName = document.getElementById('fullName');
+      const email = document.getElementById('email');
+      const password = document.getElementById('password');
+      const confirmPassword = document.getElementById('confirmPassword');
+      const alertBox = document.getElementById('formAlert');
+      const submitBtn = document.getElementById('submitBtn');
+
+      function showAlert(message, type = 'error') {
+        alertBox.textContent = message;
+        alertBox.className = 'text-sm px-3 py-2 rounded-lg ' + (
+          type === 'error'
+            ? 'bg-red-50 text-red-700 border border-red-200'
+            : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+        );
+        alertBox.classList.remove('hidden');
+      }
+
+      function clearAlert() {
+        alertBox.classList.add('hidden');
+      }
+
+      function setMode(mode) {
+        modeInput.value = mode;
+        fullNameWrap.classList.toggle('hidden', mode !== 'signup');
+        confirmWrap.classList.toggle('hidden', mode !== 'signup');
+        tabs.forEach(btn => btn.classList.toggle('active', btn.dataset.authTab === mode));
+        submitBtn.textContent = mode === 'signup' ? 'Create account' : 'Continue';
+        clearAlert();
+      }
+
+      tabs.forEach(btn => {
+        btn.addEventListener('click', () => setMode(btn.dataset.authTab));
+      });
+
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        clearAlert();
+
+        const mode = modeInput.value;
+        if (!email.value.trim() || !password.value.trim()) {
+          showAlert('Email and password are required.');
+          return;
+        }
+
+        if (mode === 'signup') {
+          if (!fullName.value.trim()) {
+            showAlert('Please provide your full name.');
+            return;
+          }
+          if (password.value.length < 6) {
+            showAlert('Password should be at least 6 characters.');
+            return;
+          }
+          if (password.value !== confirmPassword.value) {
+            showAlert('Passwords do not match.');
+            return;
+          }
+        }
+
+        const payload = {
+          email: email.value.trim(),
+          password: password.value
+        };
+        if (mode === 'signup') {
+          payload.name = fullName.value.trim();
+        }
+        if (document.getElementById('rememberMe').checked) {
+          payload.remember = true;
+        }
+
+        submitBtn.disabled = true;
+        const originalText = submitBtn.textContent;
+        submitBtn.textContent = 'Please wait...';
+
+        try {
+          const res = await fetch(ENDPOINTS[mode], {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(payload)
+          });
+          const data = await res.json().catch(() => null);
+          if (!res.ok) {
+            const message = (data && (data.error || data.message)) || `Failed (${res.status})`;
+            throw new Error(message);
+          }
+
+          showAlert(mode === 'signup' ? 'Account created! Signing you in...' : 'Success! Redirecting...', 'success');
+          setTimeout(() => { window.location.href = './index.html'; }, 900);
+        } catch (err) {
+          console.error('auth error', err);
+          showAlert(err.message || 'Request failed');
+        } finally {
+          submitBtn.disabled = false;
+          submitBtn.textContent = originalText;
+        }
+      });
+
+      (function baseUI() {
+        const themeBtn = document.getElementById('themeToggle');
+        const setTheme = (mode) => {
+          document.documentElement.classList.toggle('dark', mode === 'dark');
+          localStorage.setItem('theme', mode);
+        };
+        const stored = localStorage.getItem('theme');
+        if (stored) setTheme(stored);
+        themeBtn?.addEventListener('click', () => {
+          const next = document.documentElement.classList.contains('dark') ? 'light' : 'dark';
+          setTheme(next);
+        });
+      })();
+    })();
+  </script>
+</body>
+</html>
+

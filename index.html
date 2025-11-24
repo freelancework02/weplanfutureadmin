@@ -53,23 +53,56 @@
       <!-- Stat Cards -->
       <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <div class="rounded-xl border border-gray-200 bg-white p-5 dark:bg-gray-800 dark:border-gray-700">
-          <div class="text-sm text-gray-500">Total Events</div>
-          <div id="count-events" class="mt-2 text-3xl font-bold">—</div>
+          <div class="flex items-center justify-between text-sm text-gray-500">
+            <span>Total Events</span>
+            <span class="size-11 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center dark:bg-emerald-900/20 dark:text-emerald-200">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.7">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10m-11 8h12a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-3M9 5H5a2 2 0 0 0-2 2v10c0 1.1.9 2 2 2h1"/>
+              </svg>
+            </span>
+          </div>
+          <div id="count-events" class="mt-3 text-3xl font-bold">—</div>
           <div id="events-delta" class="mt-1 text-xs text-emerald-600">—</div>
         </div>
         <div class="rounded-xl border border-gray-200 bg-white p-5 dark:bg-gray-800 dark:border-gray-700">
-          <div class="text-sm text-gray-500">Gallery Items</div>
-          <div id="count-galleries" class="mt-2 text-3xl font-bold">—</div>
+          <div class="flex items-center justify-between text-sm text-gray-500">
+            <span>Gallery Items</span>
+            <span class="size-11 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center dark:bg-indigo-900/20 dark:text-indigo-200">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.7">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3 7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                <path stroke-linecap="round" stroke-linejoin="round" d="M10 11l2.3 2.3a1 1 0 0 0 1.4 0L16 11l4 4V7" />
+                <circle cx="7.5" cy="9.5" r="1.25" />
+              </svg>
+            </span>
+          </div>
+          <div id="count-galleries" class="mt-3 text-3xl font-bold">—</div>
           <div id="galleries-delta" class="mt-1 text-xs text-emerald-600">—</div>
         </div>
         <div class="rounded-xl border border-gray-200 bg-white p-5 dark:bg-gray-800 dark:border-gray-700">
-          <div class="text-sm text-gray-500">Blog Posts</div>
-          <div id="count-blogs" class="mt-2 text-3xl font-bold">—</div>
+          <div class="flex items-center justify-between text-sm text-gray-500">
+            <span>Blog Posts</span>
+            <span class="size-11 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center dark:bg-amber-900/20 dark:text-amber-200">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.7">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 20H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h6" />
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4h6v16h-6m0-11h4m-4 4h4m-4 4h4" />
+              </svg>
+            </span>
+          </div>
+          <div id="count-blogs" class="mt-3 text-3xl font-bold">—</div>
           <div id="blogs-delta" class="mt-1 text-xs text-amber-600">—</div>
         </div>
         <div class="rounded-xl border border-gray-200 bg-white p-5 dark:bg-gray-800 dark:border-gray-700">
-          <div class="text-sm text-gray-500">Subscribers</div>
-          <div id="count-subscribers" class="mt-2 text-3xl font-bold">—</div>
+          <div class="flex items-center justify-between text-sm text-gray-500">
+            <span>Subscribers</span>
+            <span class="size-11 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center dark:bg-sky-900/20 dark:text-sky-200">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.7">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15 19v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2" />
+                <circle cx="9" cy="7" r="3" />
+                <path stroke-linecap="round" stroke-linejoin="round" d="M21 19v-2a3 3 0 0 0-2.4-2.9M17 5a3 3 0 0 1 0 5.9" />
+              </svg>
+            </span>
+          </div>
+          <div id="count-subscribers" class="mt-3 text-3xl font-bold">—</div>
           <div id="subs-delta" class="mt-1 text-xs text-emerald-600">—</div>
         </div>
       </section>
@@ -93,9 +126,26 @@
         <div class="rounded-xl border border-gray-200 bg-white p-5 dark:bg-gray-800 dark:border-gray-700">
           <h2 class="font-semibold">Quick Actions</h2>
           <div class="mt-4 grid gap-3">
-            <a href="./events/AddEvents.html" class="w-full text-center px-4 py-2.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700">Create Event</a>
-            <a href="./gallery/add.html" class="w-full text-center px-4 py-2.5 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700">Add Gallery</a>
-            <a href="./blogs/add.html" class="w-full text-center px-4 py-2.5 rounded-lg bg-amber-600 text-white hover:bg-amber-700">Write Blog</a>
+            <a href="./events/AddEvents.html" class="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.7">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m6-6H6" />
+              </svg>
+              Create Event
+            </a>
+            <a href="./gallery/add.html" class="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.7">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3 7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                <path stroke-linecap="round" stroke-linejoin="round" d="M13 11l2 2 3-3 3 3" />
+              </svg>
+              Add Gallery
+            </a>
+            <a href="./blogs/add.html" class="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-amber-600 text-white hover:bg-amber-700">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.7">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 20H7a2 2 0 0 1-2-2V6c0-1.1.9-2 2-2h7" />
+                <path stroke-linecap="round" stroke-linejoin="round" d="M16 4h1a2 2 0 0 1 2 2v11l-3-2-3 2V4" />
+              </svg>
+              Write Blog
+            </a>
           </div>
         </div>
       </section>
