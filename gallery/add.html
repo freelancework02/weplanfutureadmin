@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" class="h-full">
+<html lang="en" class="h-full" data-root="../">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
@@ -26,11 +26,14 @@
       <a href="../index.html" class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">
         <span>🏠</span><span>Dashboard</span>
       </a>
-      <a href="./" class="flex items-center gap-3 px-3 py-2 rounded-lg mt-1 hover:bg-gray-100 dark:hover:bg-gray-700">
+      <a href="../events/" class="flex items-center gap-3 px-3 py-2 rounded-lg mt-1 hover:bg-gray-100 dark:hover:bg-gray-700">
+        <span>📅</span><span>Events</span>
+      </a>
+      <a href="./" class="flex items-center gap-3 px-3 py-2 rounded-lg mt-1 bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
         <span>🖼️</span><span>Gallery</span>
       </a>
-      <a href="./add.html" class="flex items-center gap-3 px-3 py-2 rounded-lg mt-1 bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
-        <span>➕</span><span>Add Gallery</span>
+      <a href="../blogs/" class="flex items-center gap-3 px-3 py-2 rounded-lg mt-1 hover:bg-gray-100 dark:hover:bg-gray-700">
+        <span>📝</span><span>Blogs</span>
       </a>
     </nav>
   </aside>
@@ -40,11 +43,19 @@
     <!-- Topbar -->
     <header class="sticky top-0 z-30 bg-white/80 backdrop-blur border-b border-gray-200 dark:bg-gray-800/80 dark:border-gray-700">
       <div class="h-16 px-4 flex items-center justify-between">
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-3">
           <button class="lg:hidden p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700" data-toggle="sidebar" aria-label="Open sidebar">☰</button>
-          <h1 class="text-lg font-semibold">Add Gallery</h1>
+          <div>
+            <p class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Gallery</p>
+            <h1 class="text-lg font-semibold">Add Gallery</h1>
+          </div>
         </div>
-        <button class="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700" data-toggle="theme" aria-label="Toggle theme">🌓</button>
+        <div class="flex items-center gap-2">
+          <button class="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700" data-toggle="theme" aria-label="Toggle theme">🌓</button>
+          <a href="./" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-700">
+            ← Back to Gallery
+          </a>
+        </div>
       </div>
     </header>
 
@@ -125,6 +136,8 @@
     </main>
   </div>
 
+  <script src="../assets/js/auth.js"></script>
+  <script src="../assets/js/notifications.js"></script>
   <script>
     // Base UI (sidebar + theme)
     (function baseUI(){
@@ -139,6 +152,8 @@
 
     // Add Gallery (fetch upload to Node.js/Multer API)
     (function(){
+      window.Auth?.requireAuth();
+
       const MAX_IMAGES = 50;
       const MAX_PER_FILE = 6 * 1024 * 1024;     // 6MB (server multer configured ~6MB)
       const MAX_TOTAL = 100 * 1024 * 1024;      // 100MB
@@ -309,7 +324,9 @@
         hideAlert();
 
         if (!validate()) {
-          showAlert('Please add a title and at least one valid image (size limits apply).', 'error');
+          const msg = 'Please add a title and at least one valid image (size limits apply).';
+          window.Notify?.error(msg, 4000);
+          showAlert(msg, 'error');
           return;
         }
 
@@ -321,9 +338,10 @@
         // Append images as images[] — Multer on server is configured to read this field name
         files.forEach((f)=> fd.append('images[]', f, f.name));
 
-        submitBtn.disabled = true;
-        const originalText = submitBtn.textContent;
-        submitBtn.textContent = 'Saving...';
+        const restoreBtn = window.Notify?.showButtonLoading(submitBtn, 'Creating...') || (() => {
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Save Gallery';
+        });
 
         try {
           const res = await fetch(API_URL, {
@@ -340,10 +358,11 @@
             throw new Error(msg);
           }
 
+          window.Notify?.success('Gallery created successfully! Redirecting...', 2000);
           showAlert('Gallery created successfully!', 'info');
 
           // Optional redirect to gallery list after success
-          setTimeout(()=> { window.location.href = './index.html'; }, 800);
+          setTimeout(()=> { window.location.href = './index.html'; }, 1000);
 
           // Optional: reset the form
           files = [];
@@ -352,10 +371,10 @@
           refreshSizeInfo();
           updateSubmitState();
         } catch (err) {
+          window.Notify?.error(err.message || 'Failed to create gallery', 5000);
           showAlert(err.message || 'Upload failed', 'error');
         } finally {
-          submitBtn.disabled = false;
-          submitBtn.textContent = originalText;
+          restoreBtn();
         }
       });
 

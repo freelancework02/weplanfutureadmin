@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" class="h-full">
+<html lang="en" class="h-full" data-root="../">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
@@ -31,13 +31,18 @@
   <div class="lg:pl-72 min-h-full">
     <header class="sticky top-0 z-30 bg-white/80 backdrop-blur border-b border-gray-200 dark:bg-gray-800/80 dark:border-gray-700">
       <div class="h-16 px-4 flex items-center justify-between">
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-3">
           <button class="lg:hidden p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700" data-toggle="sidebar">☰</button>
-          <h1 class="text-lg font-semibold">Add Event</h1>
+          <div>
+            <p class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Events</p>
+            <h1 class="text-lg font-semibold">Add Event</h1>
+          </div>
         </div>
         <div class="flex items-center gap-2">
           <button class="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700" data-toggle="theme">🌓</button>
-          <a href="./" class="px-3 py-1.5 rounded-lg border border-gray-300 hover:bg-gray-100 dark:border-gray-700 dark:hover:bg-gray-700">Back</a>
+          <a href="./" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-700">
+            ← Back to Events
+          </a>
         </div>
       </div>
     </header>
@@ -106,6 +111,8 @@
     </main>
   </div>
 
+  <script src="../assets/js/auth.js"></script>
+  <script src="../assets/js/notifications.js"></script>
   <script>
     (function baseUI(){
       document.querySelectorAll('[data-toggle="sidebar"]').forEach(btn=>{
@@ -118,6 +125,8 @@
     })();
 
     (function(){
+      window.Auth?.requireAuth();
+
       const API_BASE = document.querySelector('main').getAttribute('data-api-base').replace(/\/$/,'');
       const FORM = document.getElementById('form');
       const title = document.getElementById('title');
@@ -188,8 +197,16 @@
 
       FORM.addEventListener('submit', async (e)=>{
         e.preventDefault();
-        if (!title.value.trim()){ show('Title required', 'error'); return; }
-        if (!files.length){ show('At least one image required', 'error'); return; }
+        if (!title.value.trim()){ 
+          window.Notify?.error('Title is required', 3000);
+          show('Title required', 'error'); 
+          return; 
+        }
+        if (!files.length){ 
+          window.Notify?.error('At least one image is required', 3000);
+          show('At least one image required', 'error'); 
+          return; 
+        }
 
         const fd = new FormData();
         fd.append('title', title.value.trim());
@@ -202,18 +219,23 @@
         fd.append('coverIndex', coverIndex.value || '0');
         files.forEach(f => fd.append('images[]', f, f.name));
 
-        submitBtn.disabled = true; submitBtn.textContent = 'Saving...';
+        const restoreBtn = window.Notify?.showButtonLoading(submitBtn, 'Creating...') || (() => {
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Create Event';
+        });
         try {
           const res = await fetch(API_BASE + '/events', { method:'POST', body: fd, credentials:'include' });
           const json = await res.json().catch(()=>null);
           if (!res.ok) { throw new Error((json && (json.error || json.message)) || 'Upload failed'); }
+          window.Notify?.success('Event created successfully! Redirecting...', 2000);
           show('Event created', 'info');
-          setTimeout(()=> location.href = './', 700);
+          setTimeout(()=> location.href = './', 1000);
         } catch (err){
           console.error(err);
+          window.Notify?.error(err.message || 'Failed to create event', 5000);
           show(err.message || 'Save failed', 'error');
         } finally {
-          submitBtn.disabled = false; submitBtn.textContent = 'Create Event';
+          restoreBtn();
         }
       });
     })();

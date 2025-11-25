@@ -6,6 +6,7 @@
   <title>Admin | Events</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="../assets/css/custom.css" />
+  <script src="../assets/js/notifications.js"></script>
   <style>
     /* small niceties */
     .pill { padding: .25rem .5rem; border-radius: .5rem; font-size: .75rem; }
@@ -200,6 +201,7 @@
           delBtn.addEventListener('click', async ()=>{
             const ok = confirm(`Delete event "${e.title || e.id}"? This cannot be undone.`);
             if (!ok) return;
+            const restoreBtn = window.Notify?.showButtonLoading(delBtn, 'Deleting...') || (() => {});
             try {
               const res = await fetch(DELETE_URL(e.id), { method: 'DELETE', credentials: 'include' });
               const json = await res.json().catch(()=>null);
@@ -207,10 +209,14 @@
               items = items.filter(x => x.id !== e.id);
               filtered = filtered.filter(x => x.id !== e.id);
               render();
+              window.Notify?.success('Event deleted successfully', 3000);
               showAlert('Event deleted', 'info');
             } catch (err){
               console.error('Delete error', err);
+              window.Notify?.error(err.message || 'Failed to delete event', 5000);
               showAlert(err.message || 'Delete failed', 'error');
+            } finally {
+              restoreBtn();
             }
           });
 
@@ -241,8 +247,8 @@
 
       // load list
       async function load(){
+        window.Notify?.showLoading('Loading events...');
         try {
-          showAlert('Loading events…', 'info', 600);
           const res = await fetch(LIST_URL, { credentials: 'include' });
           const json = await res.json().catch(()=>null);
           if (!res.ok) {
@@ -264,11 +270,16 @@
           }));
           filtered = [...items];
           render();
-          showAlert('Loaded ' + items.length + ' events', 'info', 900);
+          window.Notify?.hideLoading();
+          if (items.length > 0) {
+            window.Notify?.success(`Loaded ${items.length} event${items.length === 1 ? '' : 's'}`, 2000);
+          }
         } catch (err) {
           console.error('Load error', err);
           items = []; filtered = [];
           render();
+          window.Notify?.hideLoading();
+          window.Notify?.error(err.message || 'Failed to load events', 5000);
           showAlert(err.message || 'Failed to load events', 'error');
         }
       }

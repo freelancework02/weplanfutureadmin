@@ -6,6 +6,7 @@
   <title>Admin | Gallery</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="../assets/css/custom.css" />
+  <script src="../assets/js/notifications.js"></script>
   <style>
     .modal-backdrop { background: rgba(0,0,0,.45); }
     .thumb { object-fit: cover; width: 140px; height: 100px; border-radius: .5rem; }
@@ -210,6 +211,7 @@
           delBtn.addEventListener('click', async () => {
             const ok = confirm(`Delete album "${g.title}"? This cannot be undone.`);
             if (!ok) return;
+            const restoreBtn = window.Notify?.showButtonLoading(delBtn, 'Deleting...') || (() => {});
             try {
               const res = await fetch(DELETE_GALLERY(g.id), { method: 'DELETE', credentials: 'include' });
               const json = await res.json().catch(()=>({}));
@@ -217,10 +219,14 @@
               items = items.filter(x => x.id !== g.id);
               filtered = filtered.filter(x => x.id !== g.id);
               render();
+              window.Notify?.success('Gallery deleted successfully', 3000);
               showAlert('Album deleted.', 'info');
             } catch (err) {
               console.error('Delete gallery error:', err);
+              window.Notify?.error(err.message || 'Failed to delete gallery', 5000);
               showAlert(err.message || 'Delete failed', 'error');
+            } finally {
+              restoreBtn();
             }
           });
 
@@ -249,6 +255,7 @@
 
       // load list of galleries
       const load = async () => {
+        window.Notify?.showLoading('Loading galleries...');
         try {
           hideAlert();
           console.info('Fetching list from', LIST_URL);
@@ -274,10 +281,16 @@
           }));
           filtered = [...items];
           render();
+          window.Notify?.hideLoading();
+          if (items.length > 0) {
+            window.Notify?.success(`Loaded ${items.length} gallery${items.length === 1 ? '' : ' galleries'}`, 2000);
+          }
         } catch (err) {
           console.error('Load galleries error:', err);
           items = []; filtered = [];
           render();
+          window.Notify?.hideLoading();
+          window.Notify?.error(err.message || 'Failed to load gallery list', 5000);
           showAlert(err.message || 'Failed to load gallery list', 'error');
         }
       };

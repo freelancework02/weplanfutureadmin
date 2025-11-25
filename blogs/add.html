@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" class="h-full">
+<html lang="en" class="h-full" data-root="../">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
@@ -52,11 +52,19 @@
   <div class="lg:pl-72 min-h-full">
     <header class="sticky top-0 z-30 bg-white/80 backdrop-blur border-b border-gray-200 dark:bg-gray-800/80 dark:border-gray-700">
       <div class="h-16 px-4 flex items-center justify-between">
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-3">
           <button class="lg:hidden p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700" data-toggle="sidebar" aria-label="Open sidebar">☰</button>
-          <h1 class="text-lg font-semibold">Create Blog Post</h1>
+          <div>
+            <p class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Blogs</p>
+            <h1 class="text-lg font-semibold">Create Blog Post</h1>
+          </div>
         </div>
-        <button class="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700" data-toggle="theme" aria-label="Toggle theme">🌓</button>
+        <div class="flex items-center gap-2">
+          <button class="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700" data-toggle="theme" aria-label="Toggle theme">🌓</button>
+          <a href="./" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-700">
+            ← Back to Blogs
+          </a>
+        </div>
       </div>
     </header>
 
@@ -135,6 +143,8 @@
 
   <script src="https://cdn.jsdelivr.net/npm/quill@1.3.7/dist/quill.min.js"></script>
 
+  <script src="../assets/js/auth.js"></script>
+  <script src="../assets/js/notifications.js"></script>
   <script>
     (function baseUI(){
       document.querySelectorAll('[data-toggle="sidebar"]').forEach(btn=>{
@@ -196,6 +206,8 @@
     })();
 
     (function(){
+      window.Auth?.requireAuth();
+
       const quill = new Quill('#editor', {
         theme: 'snow',
         modules: { toolbar: '#toolbar', clipboard: { matchVisual: false } },
@@ -375,19 +387,18 @@
         fd.append('coverIndex', coverIndexField.value);
         files.forEach(f => fd.append('images[]', f, f.name));
 
-        submitBtn.disabled = true;
-        const old = submitBtn.textContent;
-        submitBtn.textContent = 'Saving...';
+        const restoreBtn = window.Notify?.showButtonLoading(submitBtn, 'Saving...') || (() => {
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Save Post';
+        });
         debugResp.classList.add('hidden');
 
         try {
-          // Note: credentials removed. Re-add only if server expects cookies and CORS configured properly.
-          const res = await fetch(API_URL, { method: 'POST', body: fd });
+          const res = await fetch(API_URL, { method: 'POST', body: fd, credentials: 'include' });
           let json = null;
           try { json = await res.clone().json().catch(()=>null); } catch(e){ json = null; }
 
           if (!res.ok) {
-            // show server response body (JSON or text)
             await showDebugResponse(res);
             const msg = (json && (json.error || json.message || json.details)) || `Save failed (${res.status})`;
             throw new Error(msg);
@@ -398,21 +409,24 @@
             throw new Error(msg);
           }
 
+          window.Notify?.success('Blog post created successfully! Redirecting...', 2000);
           showAlert('Blog saved! Redirecting…', 'info', 1200);
-          setTimeout(()=>{ window.location.href = './'; }, 800);
+          setTimeout(()=>{ window.location.href = './'; }, 1000);
         } catch (err) {
           console.error('submitAjax error', err);
+          window.Notify?.error(err.message || 'Failed to create blog post', 5000);
           showAlert(err.message || 'Save failed', 'error', 8000);
         } finally {
-          submitBtn.disabled = false;
-          submitBtn.textContent = old;
+          restoreBtn();
         }
       };
 
       form.addEventListener('submit', (e) => {
         if (!validate()) {
           e.preventDefault();
-          showAlert('Please add a title and some content. Check image limits.', 'error');
+          const msg = 'Please add a title and some content. Check image limits.';
+          window.Notify?.error(msg, 4000);
+          showAlert(msg, 'error');
           return;
         }
         contentHtml.value  = quill.root.innerHTML;

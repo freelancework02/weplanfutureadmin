@@ -6,6 +6,7 @@
   <title>Admin | Blogs</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="../assets/css/custom.css" />
+  <script src="../assets/js/notifications.js"></script>
   <style>
     #alert { max-width: 1100px; margin: 0 auto 12px; }
     .action-btn { padding: 6px 8px; border-radius: 6px; }
@@ -199,6 +200,7 @@
           delBtn.addEventListener('click', async () => {
             const ok = confirm(`Delete post "${b.title}"? This cannot be undone.`);
             if (!ok) return;
+            const loader = window.Notify?.showLoader('Deleting blog post...');
             try {
               const res = await fetch(DELETE_URL(b.id), { method: 'DELETE', credentials: 'include' });
               const json = await res.json().catch(()=>null);
@@ -207,9 +209,13 @@
               items = items.filter(x => Number(x.id) !== Number(b.id));
               filtered = filtered.filter(x => Number(x.id) !== Number(b.id));
               render();
+              window.Notify?.hideLoader();
+              window.Notify?.success('Blog post deleted successfully', 3000);
               showAlert('Post deleted', 'info');
             } catch (err) {
               console.error('Delete error', err);
+              window.Notify?.hideLoader();
+              window.Notify?.error(err.message || 'Failed to delete blog post', 5000);
               showAlert(err.message || 'Delete failed', 'error');
             }
           });
@@ -229,8 +235,8 @@
       };
 
       const load = async () => {
+        window.Notify?.showLoading('Loading blog posts...');
         try {
-          showAlert('Loading posts...', 'info', 900);
           const res = await fetch(LIST_URL, { credentials: 'include' });
           const json = await res.json().catch(()=>null);
           if (!res.ok) {
@@ -253,12 +259,17 @@
           }));
           filtered = [...items];
           render();
-          showAlert(`Loaded ${items.length} posts.`, 'info', 1200);
+          window.Notify?.hideLoading();
+          if (items.length > 0) {
+            window.Notify?.success(`Loaded ${items.length} blog post${items.length === 1 ? '' : 's'}`, 2000);
+          }
         } catch (err) {
           console.error('Load error', err);
           items = [];
           filtered = [];
           render();
+          window.Notify?.hideLoading();
+          window.Notify?.error(err.message || 'Failed to load blog posts', 5000);
           showAlert(err.message || 'Failed to load posts', 'error', 4000);
         }
       };

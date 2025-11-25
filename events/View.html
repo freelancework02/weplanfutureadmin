@@ -1,11 +1,12 @@
 <!doctype html>
-<html lang="en" class="h-full">
+<html lang="en" class="h-full" data-root="../">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Admin | View Event</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="../assets/css/custom.css" />
+  <script src="../assets/js/notifications.js"></script>
   <style>
     .img-thumb{aspect-ratio:4/3;object-fit:cover;border-radius:.5rem}
     .lb { position: fixed; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,.85); z-index:60; }
@@ -34,14 +35,19 @@
   <div class="lg:pl-72 min-h-full">
     <header class="sticky top-0 z-30 bg-white/80 dark:bg-gray-800/80 backdrop-blur border-b border-gray-200 dark:border-gray-700">
       <div class="h-16 px-4 flex items-center justify-between">
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-3">
           <button class="lg:hidden p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700" data-toggle="sidebar">☰</button>
-          <h1 class="text-lg font-semibold">View Event</h1>
+          <div>
+            <p class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Events</p>
+            <h1 class="text-lg font-semibold">View Event</h1>
+          </div>
         </div>
         <div class="flex gap-2">
           <button class="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700" data-toggle="theme">🌓</button>
           <a id="editLink" href="#" class="px-3 py-1.5 rounded-lg border border-gray-300 hover:bg-gray-100 dark:border-gray-700 dark:hover:bg-gray-700">Edit</a>
-          <a href="./" class="px-3 py-1.5 rounded-lg border border-gray-300 hover:bg-gray-100 dark:border-gray-700 dark:hover:bg-gray-700">Back</a>
+          <a href="./" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-700">
+            ← Back to Events
+          </a>
         </div>
       </div>
     </header>
@@ -90,6 +96,7 @@
     <img id="lbImg" src="" alt="preview" />
   </div>
 
+  <script src="../assets/js/auth.js"></script>
   <script>
     (function baseUI(){
       document.querySelectorAll('[data-toggle="sidebar"]').forEach(btn=>{
@@ -102,6 +109,8 @@
     })();
 
     (function(){
+      window.Auth?.requireAuth();
+
       const API_BASE = document.querySelector('main').getAttribute('data-api-base').replace(/\/$/,'');
       const params = new URLSearchParams(location.search);
       const id = params.get('id');
@@ -123,7 +132,11 @@
       function fmt(s){ if(!s) return '—'; try { const d = new Date(String(s).replace(' ', 'T')); return d.toLocaleString(); } catch(e) { return String(s); } }
 
       async function load(){
-        if (!id){ alert('Missing id'); return; }
+        if (!id){ 
+          window.Notify?.error('Missing event ID', 3000);
+          return; 
+        }
+        window.Notify?.showLoading('Loading event...');
         editLink.href = './edit.html?id=' + encodeURIComponent(id);
         try {
           const res = await fetch(API_BASE + '/events/' + id, { credentials:'include' });
@@ -156,8 +169,12 @@
             btn.addEventListener('click', ()=>{ lbImg.src = img.src; lb.classList.remove('hidden'); });
             grid.appendChild(btn);
           });
-
-        } catch (err){ console.error(err); alert(err.message || 'Load failed'); }
+          window.Notify?.hideLoading();
+        } catch (err){ 
+          console.error(err); 
+          window.Notify?.hideLoading();
+          window.Notify?.error(err.message || 'Failed to load event', 5000);
+        }
       }
 
       lb.addEventListener('click', ()=> lb.classList.add('hidden'));

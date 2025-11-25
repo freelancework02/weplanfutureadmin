@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" class="h-full">
+<html lang="en" class="h-full" data-root="./">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
@@ -79,7 +79,7 @@
               <input id="rememberMe" type="checkbox" class="size-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500" />
               <span>Remember this device</span>
             </label>
-            <a href="#" class="text-emerald-600 hover:text-emerald-500">Need help?</a>
+            <!-- <a href="#" class="text-emerald-600 hover:text-emerald-500">Need help?</a> -->
           </div>
 
           <button type="submit" id="submitBtn" class="w-full px-4 py-3 rounded-xl bg-emerald-600 text-white font-semibold hover:bg-emerald-700">Continue</button>
@@ -94,13 +94,18 @@
     </section>
   </div>
 
+  <script src="./assets/js/auth.js"></script>
   <script>
     (function(){
+      window.Auth?.redirectIfAuthenticated();
+
       const AUTH_BASE = 'https://weplanfuture.com/api/auth';
       const ENDPOINTS = {
         signin: AUTH_BASE + '/login',
         signup: AUTH_BASE + '/register'
       };
+      const urlParams = new URLSearchParams(location.search);
+      const redirectTarget = urlParams.get('redirect');
 
       const form = document.getElementById('authForm');
       const modeInput = document.getElementById('mode');
@@ -194,8 +199,24 @@
             throw new Error(message);
           }
 
+          if (data && data.user) {
+            window.Auth?.setUser({
+              id: data.user.id,
+              name: data.user.name || payload.name || '',
+              email: data.user.email || payload.email || '',
+            });
+          } else {
+            window.Auth?.setUser({
+              name: payload.name || payload.email,
+              email: payload.email,
+            });
+          }
+
           showAlert(mode === 'signup' ? 'Account created! Signing you in...' : 'Success! Redirecting...', 'success');
-          setTimeout(() => { window.location.href = './index.html'; }, 900);
+          setTimeout(() => {
+            const fallback = window.Auth?.dashboardPath || './index.html';
+            window.location.href = redirectTarget || fallback;
+          }, 600);
         } catch (err) {
           console.error('auth error', err);
           showAlert(err.message || 'Request failed');

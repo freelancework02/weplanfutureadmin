@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" class="h-full">
+<html lang="en" class="h-full" data-root="../">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
@@ -27,7 +27,10 @@
       <a href="../index.html" class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">
         <span>🏠</span><span>Dashboard</span>
       </a>
-      <a href="./" class="flex items-center gap-3 px-3 py-2 rounded-lg mt-1 hover:bg-gray-100 dark:hover:bg-gray-700">
+      <a href="../events/" class="flex items-center gap-3 px-3 py-2 rounded-lg mt-1 hover:bg-gray-100 dark:hover:bg-gray-700">
+        <span>📅</span><span>Events</span>
+      </a>
+      <a href="./" class="flex items-center gap-3 px-3 py-2 rounded-lg mt-1 bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
         <span>🖼️</span><span>Gallery</span>
       </a>
       <a href="../blogs/" class="flex items-center gap-3 px-3 py-2 rounded-lg mt-1 hover:bg-gray-100 dark:hover:bg-gray-700">
@@ -41,14 +44,19 @@
     <!-- Topbar -->
     <header class="sticky top-0 z-30 bg-white/80 backdrop-blur border-b border-gray-200 dark:bg-gray-800/80 dark:border-gray-700">
       <div class="h-16 px-4 flex items-center justify-between">
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-3">
           <button class="lg:hidden p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700" data-toggle="sidebar">☰</button>
-          <h1 class="text-lg font-semibold">View Gallery</h1>
+          <div>
+            <p class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Gallery</p>
+            <h1 class="text-lg font-semibold">View Gallery</h1>
+          </div>
         </div>
         <div class="flex items-center gap-2">
           <button class="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700" data-toggle="theme">🌓</button>
           <a id="editLink" href="./edit.html" class="px-3 py-1.5 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700">Edit</a>
-          <a href="./" class="px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700">Back</a>
+          <a href="./" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-700">
+            ← Back to Gallery
+          </a>
         </div>
       </div>
     </header>
@@ -122,6 +130,8 @@
     </div>
   </div>
 
+  <script src="../assets/js/auth.js"></script>
+  <script src="../assets/js/notifications.js"></script>
   <script>
     // Base UI
     (function baseUI(){
@@ -136,6 +146,8 @@
 
     // View logic
     (function(){
+      window.Auth?.requireAuth();
+
       const apiBase = document.querySelector('main').getAttribute('data-api-base') || '/api';
       const params = new URLSearchParams(location.search);
       const id = params.get('id');
@@ -199,7 +211,12 @@
       });
 
       async function load() {
-        if (!id) { showAlert('Missing gallery id', 'error'); return; }
+        if (!id) { 
+          window.Notify?.error('Missing gallery ID', 3000);
+          showAlert('Missing gallery id', 'error'); 
+          return; 
+        }
+        window.Notify?.showLoading('Loading gallery...');
         editLink.href = `./edit.html?id=${encodeURIComponent(id)}`;
 
         try {
@@ -252,8 +269,11 @@
               grid.appendChild(cell);
             });
           }
+          window.Notify?.hideLoading();
         } catch (err) {
           console.error(err);
+          window.Notify?.hideLoading();
+          window.Notify?.error(err.message || 'Failed to load gallery', 5000);
           showAlert(err.message || 'Failed to load gallery', 'error');
         }
       }

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" class="h-full">
+<html lang="en" class="h-full" data-root="../">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
@@ -27,7 +27,10 @@
       <a href="../index.html" class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">
         <span>🏠</span><span>Dashboard</span>
       </a>
-      <a href="./" class="flex items-center gap-3 px-3 py-2 rounded-lg mt-1 hover:bg-gray-100 dark:hover:bg-gray-700">
+      <a href="../events/" class="flex items-center gap-3 px-3 py-2 rounded-lg mt-1 hover:bg-gray-100 dark:hover:bg-gray-700">
+        <span>📅</span><span>Events</span>
+      </a>
+      <a href="./" class="flex items-center gap-3 px-3 py-2 rounded-lg mt-1 bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
         <span>🖼️</span><span>Gallery</span>
       </a>
       <a href="../blogs/" class="flex items-center gap-3 px-3 py-2 rounded-lg mt-1 hover:bg-gray-100 dark:hover:bg-gray-700">
@@ -41,14 +44,19 @@
     <!-- Topbar -->
     <header class="sticky top-0 z-30 bg-white/80 backdrop-blur border-b border-gray-200 dark:bg-gray-800/80 dark:border-gray-700">
       <div class="h-16 px-4 flex items-center justify-between">
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-3">
           <button class="lg:hidden p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700" data-toggle="sidebar">☰</button>
-          <h1 class="text-lg font-semibold">Edit Gallery</h1>
+          <div>
+            <p class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Gallery</p>
+            <h1 class="text-lg font-semibold">Edit Gallery</h1>
+          </div>
         </div>
         <div class="flex items-center gap-2">
           <button class="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700" data-toggle="theme">🌓</button>
           <a id="viewLink" href="./view.html" class="px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700">View</a>
-          <a href="./" class="px-3 py-1.5 rounded-lg bg-slate-800 text-white hover:bg-slate-900">Back</a>
+          <a href="./" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-700">
+            ← Back to Gallery
+          </a>
         </div>
       </div>
     </header>
@@ -130,6 +138,8 @@
     </main>
   </div>
 
+  <script src="../assets/js/auth.js"></script>
+  <script src="../assets/js/notifications.js"></script>
   <script>
     // Base UI
     (function baseUI(){
@@ -143,6 +153,8 @@
     })();
 
     (function(){
+      window.Auth?.requireAuth();
+
       const apiBase = document.querySelector('main').getAttribute('data-api-base') || '/api';
       const params = new URLSearchParams(location.search);
       const id = params.get('id');
@@ -349,7 +361,12 @@
 
       // Load initial
       async function load() {
-        if (!id) { showAlert('Missing gallery id', 'error'); return; }
+        if (!id) { 
+          window.Notify?.error('Missing gallery ID', 3000);
+          showAlert('Missing gallery id', 'error'); 
+          return; 
+        }
+        window.Notify?.showLoading('Loading gallery...');
         viewLink.href = `./view.html?id=${encodeURIComponent(id)}`;
         try {
           const res = await fetch(VIEW_URL, { credentials: 'include' });
@@ -383,8 +400,11 @@
           renderNewPreview();
           refreshNewSize();
           updateSaveState();
+          window.Notify?.hideLoading();
         } catch (err) {
           console.error(err);
+          window.Notify?.hideLoading();
+          window.Notify?.error(err.message || 'Failed to load gallery', 5000);
           showAlert(err.message || 'Failed to load gallery', 'error');
         }
       }
@@ -414,14 +434,21 @@
       form.addEventListener('submit', async (e)=>{
         e.preventDefault();
         if (!canSave()) {
-          showAlert('Please fill title and keep total images (existing - deleted + new) between 1 and 7.', 'error');
+          const msg = 'Please fill title and keep total images (existing - deleted + new) between 1 and 7.';
+          window.Notify?.error(msg, 4000);
+          showAlert(msg, 'error');
           return;
         }
-        if (!UPDATE_URL) { showAlert('Missing update URL', 'error'); return; }
+        if (!UPDATE_URL) { 
+          window.Notify?.error('Missing update URL', 3000);
+          showAlert('Missing update URL', 'error'); 
+          return; 
+        }
 
-        saveBtn.disabled = true;
-        const old = saveBtn.textContent;
-        saveBtn.textContent = 'Saving...';
+        const restoreBtn = window.Notify?.showButtonLoading(saveBtn, 'Saving...') || (() => {
+          saveBtn.disabled = false;
+          saveBtn.textContent = 'Save changes';
+        });
 
         try {
           // 1) delete images (if any). Do sequentially to keep DB consistent.
@@ -462,15 +489,16 @@
             throw new Error((putJson && (putJson.error||putJson.message)) ? (putJson.error||putJson.message) : `Update failed (${putRes.status})`);
           }
 
+          window.Notify?.success('Gallery updated successfully! Redirecting...', 2000);
           showAlert('Gallery updated', 'info');
           // reload to reflect latest state (or redirect to view)
-          setTimeout(()=> { window.location.href = `./view.html?id=${encodeURIComponent(id)}`; }, 700);
+          setTimeout(()=> { window.location.href = `./view.html?id=${encodeURIComponent(id)}`; }, 1000);
         } catch (err) {
           console.error('Update error:', err);
+          window.Notify?.error(err.message || 'Failed to update gallery', 5000);
           showAlert(err.message || 'Update failed', 'error');
         } finally {
-          saveBtn.disabled = false;
-          saveBtn.textContent = old;
+          restoreBtn();
         }
       });
 

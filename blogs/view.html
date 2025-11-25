@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" class="h-full">
+<html lang="en" class="h-full" data-root="../">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
@@ -28,22 +28,28 @@
     </div>
     <nav class="p-3">
       <a href="../index.html" class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">🏠 Dashboard</a>
-      <a href="./" class="flex items-center gap-3 px-3 py-2 rounded-lg mt-1 hover:bg-gray-100 dark:hover:bg-gray-700">📝 Blogs</a>
+      <a href="../events/" class="flex items-center gap-3 px-3 py-2 rounded-lg mt-1 hover:bg-gray-100 dark:hover:bg-gray-700">📅 Events</a>
       <a href="../gallery/" class="flex items-center gap-3 px-3 py-2 rounded-lg mt-1 hover:bg-gray-100 dark:hover:bg-gray-700">🖼️ Gallery</a>
+      <a href="./" class="flex items-center gap-3 px-3 py-2 rounded-lg mt-1 bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">📝 Blogs</a>
     </nav>
   </aside>
 
   <div class="lg:pl-72 min-h-full">
     <header class="sticky top-0 z-30 bg-white/80 backdrop-blur border-b border-gray-200 dark:bg-gray-800/80 dark:border-gray-700">
       <div class="h-16 px-4 flex items-center justify-between">
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-3">
           <button class="lg:hidden p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700" data-toggle="sidebar">☰</button>
-          <h1 class="text-lg font-semibold">View Blog</h1>
+          <div>
+            <p class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Blogs</p>
+            <h1 class="text-lg font-semibold">View Blog</h1>
+          </div>
         </div>
         <div class="flex items-center gap-2">
           <button id="themeToggle" class="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700">🌓</button>
           <a id="editLink" class="px-3 py-1.5 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700" href="#">Edit</a>
-          <a href="./" class="px-3 py-1.5 rounded-lg border border-gray-300 hover:bg-gray-100">Back</a>
+          <a href="./" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-700">
+            ← Back to Blogs
+          </a>
         </div>
       </div>
     </header>
@@ -86,6 +92,8 @@
     </div>
   </div>
 
+  <script src="../assets/js/auth.js"></script>
+  <script src="../assets/js/notifications.js"></script>
   <script>
     // base UI toggles
     (function baseUI(){
@@ -99,6 +107,8 @@
     })();
 
     (function viewBlog(){
+      window.Auth?.requireAuth();
+
       const apiBase = document.querySelector('main').getAttribute('data-api-base') || '/api';
       const params = new URLSearchParams(location.search);
       const id = params.get('id');
@@ -151,6 +161,7 @@
       }
 
       async function load() {
+        window.Notify?.showLoading('Loading blog post...');
         try {
           const res = await fetch(GET_URL, { credentials: 'include' });
           const json = await res.json().catch(()=>null);
@@ -194,8 +205,11 @@
           }
 
           editLink.href = `./edit.html?id=${encodeURIComponent(id)}`;
+          window.Notify?.hideLoading();
         } catch (err) {
           console.error('load error:', err);
+          window.Notify?.hideLoading();
+          window.Notify?.error(err.message || 'Failed to load blog post', 5000);
           showAlert(err.message || 'Failed to load blog', 'error');
         }
       }
