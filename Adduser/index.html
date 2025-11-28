@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>We plan future | Add User</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="../assets/css/custom.css" />
+</head>
+<body class="min-h-screen bg-slate-100 text-gray-900">
+  <div class="max-w-4xl mx-auto px-4 py-8 space-y-8">
+    <header class="flex flex-col gap-4">
+      <div class="flex items-center justify-between">
+        <a href="../index.html" class="inline-flex items-center gap-2 rounded-full bg-white shadow border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition">
+          <span aria-hidden="true">←</span>
+          Back to dashboard
+        </a>
+        <span class="text-xs uppercase tracking-widest text-emerald-600 font-semibold">Administration</span>
+      </div>
+      <div>
+        <h1 class="text-3xl font-semibold text-gray-900">Add User</h1>
+        <p class="text-gray-600 mt-2">Create a dashboard account. Newly created users can sign in via the main login page.</p>
+      </div>
+    </header>
+
+    <section class="bg-white rounded-3xl border border-gray-200 shadow-xl shadow-emerald-100/40">
+      <div class="p-6 lg:p-10 space-y-6">
+        <form id="userForm" class="space-y-5">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Full name</label>
+            <input id="fullName" type="text" class="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 focus:ring-2 focus:ring-emerald-500 outline-none" placeholder="Jane Doe" required />
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Email address</label>
+            <input id="email" type="email" class="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 focus:ring-2 focus:ring-emerald-500 outline-none" placeholder="user@example.com" required />
+          </div>
+
+          <div class="grid md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+              <input id="password" type="password" class="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 focus:ring-2 focus:ring-emerald-500 outline-none" placeholder="••••••••" required />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Confirm password</label>
+              <input id="confirmPassword" type="password" class="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 focus:ring-2 focus:ring-emerald-500 outline-none" placeholder="Repeat password" required />
+            </div>
+          </div>
+
+          <!-- <div class="flex items-center gap-3">
+            <input id="sendInvite" type="checkbox" class="size-4 rounded border-gray-400 text-emerald-600 focus:ring-emerald-500" />
+            <label for="sendInvite" class="text-sm text-gray-600">Send welcome email</label>
+          </div> -->
+
+          <div id="alertBox" class="hidden text-sm px-4 py-3 rounded-2xl border"></div>
+
+          <div class="flex gap-3">
+            <button type="submit" id="submitBtn" class="flex-1 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-5 py-3 shadow-lg shadow-emerald-500/30">Create user</button>
+            <button type="reset" class="rounded-2xl border border-gray-200 px-5 py-3 text-gray-600 hover:bg-gray-50">Reset</button>
+          </div>
+        </form>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    (function(){
+      const AUTH_BASE = 'https://weplanfuture.com/api/auth';
+      const form = document.getElementById('userForm');
+      const fullName = document.getElementById('fullName');
+      const email = document.getElementById('email');
+      const password = document.getElementById('password');
+      const confirmPassword = document.getElementById('confirmPassword');
+      const sendInvite = document.getElementById('sendInvite');
+      const alertBox = document.getElementById('alertBox');
+      const submitBtn = document.getElementById('submitBtn');
+
+      function showAlert(message, type = 'error') {
+        alertBox.textContent = message;
+        alertBox.className = 'text-sm px-4 py-3 rounded-2xl border ' + (
+          type === 'error'
+            ? 'bg-red-500/10 border-red-500/40 text-red-100'
+            : 'bg-emerald-500/10 border-emerald-400 text-black'
+        );
+        alertBox.classList.remove('hidden');
+      }
+
+      function clearAlert() {
+        alertBox.classList.add('hidden');
+      }
+
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        clearAlert();
+
+        if (!fullName.value.trim()) {
+          showAlert('Name is required.');
+          return;
+        }
+        if (!email.value.trim()) {
+          showAlert('Email is required.');
+          return;
+        }
+        if (password.value.length < 6) {
+          showAlert('Password must be at least 6 characters.');
+          return;
+        }
+        if (password.value !== confirmPassword.value) {
+          showAlert('Passwords do not match.');
+          return;
+        }
+
+        const payload = {
+          name: fullName.value.trim(),
+          email: email.value.trim(),
+          password: password.value,
+        };
+
+        submitBtn.disabled = true;
+        const originalText = submitBtn.textContent;
+        submitBtn.textContent = 'Creating...';
+
+        try {
+          const res = await fetch(AUTH_BASE + '/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(payload)
+          });
+
+          const data = await res.json().catch(() => null);
+          if (!res.ok) {
+            const message = (data && (data.error || data.message)) || `Failed (${res.status})`;
+            throw new Error(message);
+          }
+
+          showAlert('User created successfully Redirecting to dashboard... !', 'success');
+          form.reset();
+          setTimeout(clearAlert, 2000);
+          setTimeout(() => {
+            window.location.href = '../index.html';
+          }, 2000);
+        } catch (err) {
+          showAlert(err.message || 'Request failed');
+        } finally {
+          submitBtn.disabled = false;
+          submitBtn.textContent = originalText;
+        }
+      });
+    })();
+  </script>
+</body>
+</html>
+
